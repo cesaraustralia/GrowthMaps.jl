@@ -18,7 +18,7 @@ import Base.*
 
 
 include("models.jl")
-include("models.jl")
+include("smap.jl")
 
 
 # Intermediate storage
