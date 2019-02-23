@@ -5,8 +5,7 @@
 [![codecov.io](http://codecov.io/github/rafaqz/GrowthRates.jl/coverage.svg?branch=master)](http://codecov.io/github/rafaqz/GrowthRates.jl?branch=master)
 [![Coverage Status](https://coveralls.io/repos/rafaqz/GrowthRates.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/rafaqz/GrowthRates.jl?branch=master)
 
-GrowthRates.jl calculates growth rates from gridded environmental data and
-combined growth and stress models.
+GrowthRates.jl produces gridded growth rates from gridded environmental data
+(SMAP) and combined growth and stress models.
 
-Models can be added and combined arbitrarily to produce overall growth rate
-grids.
+Models can be added and combined arbitrarily, and can run on a CPU or GPU.

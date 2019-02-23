@@ -1,2 +1,2 @@
-using GrowthRates, Unitful, Test
+using GrowthRates, HDF5, Dates, Unitful, Test
 
