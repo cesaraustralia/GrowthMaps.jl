@@ -1,5 +1,7 @@
 # GrowthMaps
 
+[![](https://img.shields.io/badge/docs-stable-blue.svg)](https://rafaqz.github.io/GrowthMaps.jl/stable)
+[![](https://img.shields.io/badge/docs-dev-blue.svg)](https://rafaqz.github.io/GrowthMaps.jl/dev)
 [![Build Status](https://travis-ci.org/rafaqz/GrowthMaps.jl.svg?branch=master)](https://travis-ci.org/rafaqz/GrowthMaps.jl)
 [![Build status](https://ci.appveyor.com/api/projects/status/dpf055yo50y21g1v?svg=true)](https://ci.appveyor.com/project/rafaqz/growthraates-jl)
 [![codecov.io](http://codecov.io/github/rafaqz/GrowthMaps.jl/coverage.svg?branch=master)](http://codecov.io/github/rafaqz/GrowthMaps.jl?branch=master)
