@@ -1,4 +1,4 @@
-The GrowthRates.jl package is licensed under the MIT "Expat" License:
+The GrowthMaps.jl package is licensed under the MIT "Expat" License:
 
 > Copyright (c) 2019: Rafael Schouten and James Maino
 >

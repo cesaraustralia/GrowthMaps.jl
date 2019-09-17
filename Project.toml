@@ -1,15 +1,17 @@
-name = "GrowthRates"
+name = "GrowthMaps"
 uuid = "a252ced4-3752-11e9-0615-256422162c4d"
 authors = ["Rafael Schouten <rafaelschouten@gmail.com>"]
 version = "0.1.0"
 
 [deps]
-Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
+Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+GeoData = "9b6fcbb8-86d6-11e9-1ce7-23a6bb139a78"
 HDF5 = "f67ccb44-e63f-5c2f-98bd-6dc0ccc4ba2f"
+Mixers = "2a8e4939-dab8-5edc-8f64-72a8776f13de"
+Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 
 [targets]
 test = ["Test", "Dates", "HDF5"]
