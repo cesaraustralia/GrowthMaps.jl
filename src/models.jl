@@ -25,34 +25,37 @@ struct LowerStress{T,M} <: StressModel
     threshold::T
     mortalityrate::M
 end
-@inline condition(m::LowerStress, x) = x < m.lowerct
-@inline rate(m::LowerStress, x) = (m.lowerct - x) * m.lowerctm 
- 
+@inline condition(m::LowerStress, x) = x * oneunit(m.threshold) < m.threshold
+@inline rate(m::LowerStress, x) = (m.threshold - x * oneunit(m.threshold)) * m.mortalityrate
+
 struct UpperStress{T,M} <: StressModel
     key::Symbol
     threshold::T
     mortalityrate::M
 end
-@inline condition(m::UpperStress, x) = x > m.upperct
-@inline rate(m::UpperStress, x) = (x - m.upperct) * m.upperctm
+@inline condition(m::UpperStress, x) = x * oneunit(m.threshold) > m.threshold
+@inline rate(m::UpperStress, x) = (x * oneunit(m.threshold) - m.threshold) * m.mortalityrate
 
 """
-See Schoolfield 1981 "Non-linear regression of biological temperature-dependent rate 
+See Schoolfield 1981 "Non-linear regression of biological temperature-dependent rate
 models base on absolute reaction-rate theory"
 """
-struct IntrinsicGrowth{S,P,K,TR} <: GrowthModel
-    key::Symbol # key::Sym
-    scale::S    # scale::S
-    p25::P      # p25::P
-    H_A::K      # H_A::K
-    H_L::K      # H_L::K
-    T_0_5L::K   # T_0_5L::
-    H_H::K      # H_H::K
-    T_0_5H::K   # T_0_5H::
-    tref::TR    # tref::TR
+struct IntrinsicGrowth{P,CM,K,R} <: GrowthModel
+    key::Symbol
+    p::P
+    ΔH_A::CM
+    ΔH_L::CM
+    ΔH_H::CM
+    T_halfL::K
+    T_halfH::K
+    T_ref::K
+    R::R
 end
 
-const R = 1.987
-@inline rate(m::IntrinsicPopGrowth, x) = m.p25 * (x * (m.H_A/R * (1/m.tref - 1/x))) /
-    (1 + exp(m.H_L/R * (1/m.T_0_5L - 1/x)) + exp(m.H_H/R * (1/m.T_0_5H - 1/x))) / m.scale
+rate(m::IntrinsicGrowth, x) = begin
+    u = unit(m.T_ref)
+    x *= u 
+    m.p * x/m.T_ref * exp(m.ΔH_A/m.R * (1/m.T_ref - 1/x)) /
+        (1 + exp(m.ΔH_L/m.R * (1/m.T_halfL - 1/x)) + exp(m.ΔH_H/m.R * (1/m.T_halfH - 1/x)))
+end
 

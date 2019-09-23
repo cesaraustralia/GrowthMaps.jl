@@ -1,6 +1,6 @@
 ---
 title : GrowthMaps.jl example
-author : Rafael Schouten
+author : Rafael Schouten, James Maino
 ---
 
 # Growth rate calculation
@@ -20,7 +20,7 @@ fast. If you have a GPU you may want to try running more days.
 using GrowthMaps, GeoData, Dates, Plots, Unitful, Pkg
 using GeoData: Time
 # Load some Unitful.jl units
-using Unitful: °C, K
+using Unitful: °C, K, cal, mol
 basedir = Pkg.dir("GrowthMaps")
 
 # download some smap files?
@@ -31,9 +31,11 @@ processing time:
 
 
 ```julia; results=hidden
-window = Lon<|Between(-125, -75), Lat(150:480)
-series = SMAPseries(joinpath(basedir, "test"); window=window);
+series = SMAPseries(joinpath(basedir, "test"); 
+                    window=(Lon<|Between(-125, -75), Lat(150:480)));
+
 ```
+
 
 We can plot a layer from a file at some date in the series:
 
@@ -49,39 +51,44 @@ Set the time period to a month, and set the length of the subsample period to
 the available times over one day:
 
 
-
-### Define parameters
-
-
-```julia; results=hidden
-p25 = 3.377850e-01
-H_A = 3.574560e+04K
-H_L = -1.108990e+05K
-T_0_5L = 2.359187e+02K
-H_H = 3.276604e+05K
-T_0_5H = 2.991132e+02K
-
-lowersm = 0.0 # no data
-uppers = 1.0 # no data
-lowerct = 7.0°C |> K  # Enriquez2017
-lowerctm = -log(1.00) * K^-1
-upperct = 30.0°C |> K # Kimura2004
-upperctm = -log(1.15) * K^-1
-lowerwilt = 0.5 # default?
-wiltingm = -log(1.1)
-```
-
 ### Define model components
 
-The first parameter is always the key for the layer, from the list we saw
-earlier using `keys()`.
+First we'll define the growth model, using IntrsinsicGrowth based on Schoolfield
+(1981).
 
+When defining model components, the first parameter is always the key for the
+stack layer, from the list we saw earlier using `keys()`.
 
 ```julia; results=hidden
-growth = IntrinsicPopGrowth(:surface_temp, 1/K, p25, H_A, H_L, T_0_5L, H_H, T_0_5H)
-cold = ColdDays(:surface_temp, lowerct, lowerctm)
-hot = HotDays(:surface_temp, upperct, upperctm)
-wilt = Wilting(:land_fraction_wilting, lowerwilt, wiltingm)
+p = 3.377850e-01
+ΔH_A = 3.574560e+04cal/mol
+ΔH_L = -1.108990e+05cal/mol
+ΔH_H = 3.276604e+05cal/mol
+Thalf_L = 2.359187e+02K
+Thalf_H = 2.991132e+02K
+T_ref = K(25.0°C)
+R = Unitful.R
+growth = IntrinsicGrowth(:surface_temp, p, ΔH_A, ΔH_L, 
+                         ΔH_H, Thalf_L, Thalf_H, T_ref, R)
+```
+
+Now we define stress models for cold, heat and wilt stress. As these insects
+live on and around plants, we use wilting as an indicater of stress induced by
+lack of moisture. These models have a threshold in K and mortality rate per
+degree K. `LowerStress` models stress below the given threshold, while
+UpperStress models stress induced above a threshold.
+
+```julia; results=hidden
+coldthresh = 7.0°C |> K  # Enriquez2017
+coldmort = -log(1.00) * K^-1
+heatthresh = 30.0°C |> K # Kimura2004
+heatmort = -log(1.15) * K^-1
+wiltthresh = 0.5 # default?
+wiltmort = -log(1.1);
+
+coldstress = LowerStress(:surface_temp, coldthresh, coldmort)
+heatstress = UpperStress(:surface_temp, heatthresh, heatmort)
+wiltstress = UpperStress(:land_fraction_wilting, wiltthresh, wiltmort);
 ```
 
 ### Combine components into a model
@@ -90,11 +97,11 @@ To build a model, we simple chain components together in a tuple:
 
 
 ```julia; results=hidden
-model = (growth, cold, hot, wilt)
+model = (growth, coldstress, heatstress, wiltstress);
 # Some alternative models:
-# model = (wilt,)
-# model = (growth, wilt)
-# model = (growth, cold, hot)
+# model = (wiltstress,)
+# model = (growth, wiltstress)
+# model = (growth, coldstress, heatstress)
 ```
 
 ### Use your GPU?
@@ -115,11 +122,11 @@ constructor = identity
 
 
 ```julia; results=hidden
-output = growthrates(model, series; 
-                     period=Second(356.25*24*60*60/12),
-                     nperiods=12,
-                     subperiod=Day(1), 
-                     constructor=constructor)
+output = mapgrowth(model, series; 
+                   period=Month(1),
+                   nperiods=12,
+                   subperiod=Day(1), 
+                   constructor=constructor);
 output[Time(1)] |> plot
 savefig("build/assets/growthrates.png")
 ```
@@ -135,11 +142,3 @@ mkpath(path)
 rates = output
 @save joinpath(path, "growthrates.jld2") rates 
 ```
-
-# Writing your own model components
-
-Model components are just julia structs that have `rates` and `conditions`
-methods. You can use struct fields for any parameters you need. See the
-[models.jl](
-
-
