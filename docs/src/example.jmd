@@ -13,7 +13,7 @@ We'll subsample down to using just one day per month so the model runs really
 fast. If you have a GPU you may want to try running more days.
 
 
-### Load the required packages
+## Load the required packages
 
 
 ```julia; results=hidden
@@ -51,10 +51,10 @@ Set the time period to a month, and set the length of the subsample period to
 the available times over one day:
 
 
-### Define model components
+## Define model components
 
-First we'll define the growth model, using IntrsinsicGrowth based on Schoolfield
-(1981).
+First we'll define the growth model using `IntrsinsicGrowth`, based on
+Schoolfield (1981).
 
 When defining model components, the first parameter is always the key for the
 stack layer, from the list we saw earlier using `keys()`.
@@ -76,7 +76,7 @@ Now we define stress models for cold, heat and wilt stress. As these insects
 live on and around plants, we use wilting as an indicater of stress induced by
 lack of moisture. These models have a threshold in K and mortality rate per
 degree K. `LowerStress` models stress below the given threshold, while
-UpperStress models stress induced above a threshold.
+`UpperStress` models stress induced above a threshold.
 
 ```julia; results=hidden
 coldthresh = 7.0°C |> K  # Enriquez2017
@@ -91,7 +91,7 @@ heatstress = UpperStress(:surface_temp, heatthresh, heatmort)
 wiltstress = UpperStress(:land_fraction_wilting, wiltthresh, wiltmort);
 ```
 
-### Combine components into a model
+## Combine components into a model
 
 To build a model, we simple chain components together in a tuple:
 
@@ -104,7 +104,7 @@ model = (growth, coldstress, heatstress, wiltstress);
 # model = (growth, coldstress, heatstress)
 ```
 
-### Use your GPU?
+## Use your GPU?
 
 If you have a GPU you can use `CuArray` from
 [CuArrays.jl](https://github.com/JuliaGPU/CuArrays.jl) to move processing to the
@@ -119,7 +119,6 @@ constructor = identity
 ```
 
 ## Run your model
-
 
 ```julia; results=hidden
 output = mapgrowth(model, series; 

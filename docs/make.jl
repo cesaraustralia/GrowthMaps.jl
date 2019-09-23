@@ -1,7 +1,12 @@
 using Documenter, GrowthMaps, Weave, IJulia
 
 example = "src/example.jmd"
-cp(example, "src/example.md", force=true)
+# Remove YAML
+mdlines = readlines(example)
+md = join(mdlines[findall(x -> x=="---", mdlines)[2]+1:end], "\n")
+# Format code blocks for jldoctest 
+md = replace(md, Regex("```julia.*") => "```jldoctest")
+write("src/example.md", md)
 
 # Generate HTML docs
 makedocs(
