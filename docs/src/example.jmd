@@ -141,3 +141,25 @@ mkpath(path)
 rates = output
 @save joinpath(path, "growthrates.jld2") rates 
 ```
+
+## Compare with observation data
+
+Plot again, setting the x and y lims (do automatically in GeoData.jl?)
+
+```julia; results=hiddeats
+array = output[Time(1)]
+p = plot(array; xlim=bounds(dims(array, Lon)), ylim=bounds(dims(array, Lat)))
+```
+
+Load observations from a CSV file, and scatter them on the map. The
+`zip` function joins Lat and Lon columns into point tuples, which can 
+be plotting using Plots.jl.
+
+```julia; results=hiddeats
+using CSV
+obs = CSV.File("/home/raf/CESAR/Oersted_occurrence.csv")
+scatter!(p, collect(zip(obs.Longitude, obs.Latitude)); 
+         markersize=0.5, markercolor=:grey, markershape=:dtriangle, label="obs",
+         xlim=bounds(dims(array, Lon)), ylim=bounds(dims(array, Lat))
+         )
+```

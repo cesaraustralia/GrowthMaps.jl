@@ -19,7 +19,7 @@ makedocs(
 )
 
 deploydocs(
-    repo = "github.com/rafaqz/GrowthMaps.jl.git",
+    repo = "github.com/cesaraustralia/GrowthMaps.jl.git",
 )
 
 pdfdir = "build/pdf" 
