@@ -31,14 +31,14 @@ processing time:
 
 
 ```julia; results=hidden
-series = SMAPseries(joinpath(basedir, "test"); 
-                    window=(Lon<|Between(-125, -75), Lat(150:480)));
-
+series = SMAPseries(joinpath(basedir, "test");) 
+                    window=(Lon<|Between(-125, -75), Lat(150:480))
+                    ) ;
+DimensionalData.dims2indices(GeoData.childdims(series), window)
 ```
 
 
 We can plot a layer from a file at some date in the series:
-
 
 ```julia; results=hidden
 series[Near(Date(2016))][:surface_temp] |> plot
@@ -68,8 +68,8 @@ Thalf_L = 2.359187e+02K
 Thalf_H = 2.991132e+02K
 T_ref = K(25.0°C)
 R = Unitful.R
-growth = IntrinsicGrowth(:surface_temp, p, ΔH_A, ΔH_L, 
-                         ΔH_H, Thalf_L, Thalf_H, T_ref, R)
+growth = SchoolfieldIntrinsicGrowth(:surface_temp, p, ΔH_A, ΔH_L, 
+                         ΔH_H, Thalf_L, Thalf_H, T_ref, R);
 ```
 
 Now we define stress models for cold, heat and wilt stress. As these insects
@@ -81,53 +81,66 @@ degree K. `LowerStress` models stress below the given threshold, while
 ```julia; results=hidden
 coldthresh = 7.0°C |> K  # Enriquez2017
 coldmort = -log(1.00) * K^-1
+coldstress = LowerStress(:surface_temp, coldthresh, coldmort)
+
 heatthresh = 30.0°C |> K # Kimura2004
 heatmort = -log(1.15) * K^-1
+heatstress = UpperStress(:surface_temp, heatthresh, heatmort)
+
 wiltthresh = 0.5 # default?
 wiltmort = -log(1.1);
-
-coldstress = LowerStress(:surface_temp, coldthresh, coldmort)
-heatstress = UpperStress(:surface_temp, heatthresh, heatmort)
 wiltstress = UpperStress(:land_fraction_wilting, wiltthresh, wiltmort);
 ```
 
-## Combine components into a model
+## Define a model
 
-To build a model, we simple chain components together in a tuple:
-
+First we'll define a simple model, that only calculates growth rate
 
 ```julia; results=hidden
-model = (growth, coldstress, heatstress, wiltstress);
-# Some alternative models:
-# model = (wiltstress,)
-# model = (growth, wiltstress)
-# model = (growth, coldstress, heatstress)
+model = growth;
 ```
 
-## Use your GPU?
-
-If you have a GPU you can use `CuArray` from
-[CuArrays.jl](https://github.com/JuliaGPU/CuArrays.jl) to move processing to the
-GPU for a ~10x performance improvement. Otherwise the `identity` function simply
-leaves the data as-is on the CPU.
-
+And run it:
 
 ```julia; results=hidden
-constructor = identity
-# using CuArrays
-# constructor = CuArray
+output = mapgrowth(model, series; period=Month(1), 
+                   nperiods=12, subperiod=Day(1));
 ```
 
-## Run your model
+The create a plot of the sixth month.
 
 ```julia; results=hidden
-output = mapgrowth(model, series; 
-                   period=Month(1),
-                   nperiods=12,
-                   subperiod=Day(1), 
-                   constructor=constructor);
 output[Time(1)] |> plot
-savefig("build/assets/growthrates.png")
+```
+
+We can see it doesn't really capture growth dynamics - growth rates are very
+high in dry desert regions.
+
+## Combine multiple components into a model
+
+To build a more complex (and hopefully accurate) model, we can chain components 
+together in a tuple:
+
+```julia; results=hidden
+model = growth, wiltstress;
+```
+
+And again, run and plot them:
+
+```julia; results=hidden
+output = mapgrowth(model, series; period=Month(1), 
+                   nperiods=12, subperiod=Day(1));
+output[Time(1)] |> plot
+```
+
+We can then define a full model with a growth rate and three stressors:
+
+```julia; results=hidden
+model = growth, coldstress, heatstress, wiltstress
+output = mapgrowth(model, series; period=Month(1), 
+                   nperiods=12, subperiod=Day(1));
+output[Time(1)] |> plot
+savefig("build/assets/growthrates.png");
 ```
 
 ![Growth Rates](../assets/growthrates.png)
@@ -138,8 +151,8 @@ Save the output to the `docs/build` folder (or wherever you like).
 using JLD2
 path = joinpath(basedir, "docs/build")
 mkpath(path)
-rates = output
-@save joinpath(path, "growthrates.jld2") rates 
+growthrates = output
+@save joinpath(path, "growthrates.jld2") growthrates 
 ```
 
 ## Compare with observation data
@@ -159,7 +172,58 @@ be plotting using Plots.jl.
 using CSV
 obs = CSV.File("/home/raf/CESAR/Oersted_occurrence.csv")
 scatter!(p, collect(zip(obs.Longitude, obs.Latitude)); 
-         markersize=0.5, markercolor=:grey, markershape=:dtriangle, label="obs",
+         markersize=0.5, markercolor=:grey, markershape=:circle, label="obs",
          xlim=bounds(dims(array, Lon)), ylim=bounds(dims(array, Lat))
          )
 ```
+
+
+Writing your own models. Here we can analise how the `SchoolfieldIntrinsicGrowth`
+model works, in order to add new formulations. 
+
+First we need to define a julia struct to hold our parameters and choose the rate method 
+to dispatch on in the simulation.
+
+It should inherit from `GrowthModel` or `StressModel`, and must have a `K` type parameter
+that will hold the layer key symbol. Then use one type parameter for each type parameter 
+(here `P`, `HA` etc) these allow different float or unit types to share the same code with 
+high performance.  You can use unicode special characters for parameter names.
+
+```julia
+struct SchoolfieldIntrinsicGrowth{K,P,HA,HL,HH,TL,TH,TR,R} <: GrowthModel{K}
+    p::P
+    ΔH_A::HA
+    ΔH_L::HL
+    ΔH_H::HH
+    T_halfL::TL
+    T_halfH::TH
+    T_ref::TR
+    R::R
+end
+```
+
+Then we can define a method of `rate` that will be run for each cell in the grid.
+The `@inline` macro ensures that the code can be complied together with the other
+models into a single broadcast operation, which in most cases improves performance.
+Fields of the `SchoolfieldIntrinsicGrowth` are used as parameters in the equation.
+Notice we multiply the array value by `oneunit` of the `T_ref` variable to allow 
+using Unitful.jl units (K), without specifying them in the array.
+
+```julia
+@inline rate(m::SchoolfieldIntrinsicGrowth, x) = begin
+    x *= oneunit(m.T_ref)
+    m.p * x/m.T_ref * exp(m.ΔH_A/m.R * (1/m.T_ref - 1/x)) /
+        (1 + exp(m.ΔH_L/m.R * (1/m.T_halfL - 1/x)) + exp(m.ΔH_H/m.R * (1/m.T_halfH - 1/x)))
+end
+```
+
+We can also define a `condition` method that will return a boolean to 
+filter out values where no rate
+will be calculated and added to the overall growth rate. 
+The default is simply to return `true` and run for all cells.
+This `condition` method is fore the `UpperStress` model:
+
+```julia
+@inline condition(m::UpperStress, x) = x * oneunit(m.threshold) > m.threshold
+```
+
