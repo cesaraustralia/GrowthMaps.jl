@@ -10,95 +10,111 @@ using Base: tail
 
 export mapgrowth
 
-export AbstractRateModel, LowerStress, UpperStress, IntrinsicGrowth
+export RateModel, GrowthModel, SchoolfieldIntrinsicGrowth, StressModel, LowerStress, UpperStress
 
 include("models.jl")
 
 
 """
-    growthrates(models, series::AbstractGeoSeries; 
-                startdate=first(val(dims(series, Time))), nsubperiods=1, subperiod=Day(1), 
-                period=Month(1), nperiods=12, constructor=identity)
+    mapgrowth(models, series::AbstractGeoSeries;
+              startdate=first(val(dims(series, Time))), nsubperiods=1, subperiod=Day(1),
+              period=Month(1), nperiods=12, constructor=identity)
 
 Combine growth rates accross rate models and subperiods for all required periods.
 
-The output is an array with the same dimensions as the passed in stack layers along a Time
+## Arguments
+- `models`: tuple of any RateModel compnents
+- `series`: any AbstractGeoSeries from [GeoData.jl](http://github.com/rafaqz/GeoData.jl)
+
+## Keyword Arguments
+- `nperiods=12`: number of periods returned in the output
+- `startdate=first(bounds(series, Time)))`: starting date of the sequence 
+- `enddate=startdate + period * nperiods`
+- `period=Month(1)`: length of the period to output 
+- `subperiod=Day(1)`: length of the subperiods used to calculate output, such as a whole day to capture daily fluctuations.
+- `constructor=identity`: Set to CuArray to process with CUDA on your GPU.
+
+The output is a GeoArray with the same dimensions as the passed in stack layers, and a Time
 dimension with a length of `nperiods`.
 """
+mapgrowth(model, series; kwargs...) = mapgrowth((model,), series; kwargs...)
+mapgrowth(model::Tuple, series::AbstractGeoSeries;
+          nperiods=1,
+          period=Month(1),
+          startdate=first(bounds(series, Time)),
+          enddate=startdate + period * nperiods,
+          subperiod=Day(1),
+          subperiod_starts=startdate:subperiod:enddate,
+          constructor=identity) = begin
 
-
-function mapgrowth(model, series::AbstractGeoSeries;
-                   nperiods=1,
-                   period=Month(1),
-                   startdate=first(val(dims(series, Time))),
-                   enddate=startdate + period * nperiods,
-                   subperiod=Day(1),
-                   subperiod_starts=startdate:subperiod:enddate,
-                   constructor=identity)
-    # Allocate memory
     stack = first(series)
-    reqkeys = keys(model)
+    reqkeys = Tuple(union(keys(model)))
     # Make a memory backed stack using only the keys required for the model,
     # on the GPU if `constructor` is CuArray or similar
     # TODO: make an operation that reqbuilds with a subset of keys in GeoData
-    layers = NamedTuple{reqkeys}(constructor.((stack[key] for key in reqkeys)))
-    stackbuffer = rebuild(stack; parent=layers)
-    mask = GeoData.mask(first(values(stackbuffer)))
-    init = zero(first(values(stackbuffer)))
+    arraygen = (reconstructparent(stack[key], constructor) for key in reqkeys)
+    stackbuffer = GeoStack(stack; data=NamedTuple{reqkeys}(Tuple(arraygen)))
+    A = first(values(stackbuffer));
+    mask = GeoData.mask(A)
+    # Create an init array without refdims or a name
+    init = GeoArray(A; data=zero(parent(A)), name=Symbol(""), refdims=());
 
     dates = val(dims(series, Time))
     periodstarts = period_startdates(startdate, period, nperiods)
     # Setup output vector
     # Make a 3 dimensional GeoArray for output, adding the time dimension
     # to init (there should be a function for this in DimensionalData.jl - growdim?
-    outputs = rebuild(init; parent=zeros(size(init)..., nperiods), dims=(dims(init)..., Time(periodstarts)))
+    outputs = rebuild(init; data=zeros(size(init)..., nperiods), dims=(dims(init)..., Time(periodstarts)))
 
     for p in 1:nperiods
         periodstart = periodstarts[p]
+        println("\n", "Processing period starting: ", periodstart)
         periodend = periodstart + period
         n = 0
         subs = subset_startdates(periodstart, periodend, subperiod_starts)
         for substart in subs
-            subend = substart + subperiod - Second(1)
-            subseries = series[Time<|Between(substart, subend)]
-            # if size(subseries, Time) == 0 
-                # println("Warning: no data found for the subperiod $substart to $subend")
-            # end
+            subend = min(substart + subperiod, periodend)
+            subseries = series[Time<|Between(substart, subend - Second(1))]
             for t in 1:size(subseries, Time)
+                println("    ", val(dims(subseries, Time))[t])
                 copy!(stackbuffer, subseries[t])
-                outputs[Time(p)] .+= conditionalrate(model, stackbuffer)
+                A[Time(p)] .+= conditionalrate(model, stackbuffer)
                 n += 1
             end
         end
-        outputs[Time(p)] .*= mask ./ n
+        if n > 0
+            A[Time(p)] .*= parent(mask) ./ n
+        else
+            println("    No files found for this period")
+            A[Time(p)] .*= parent(mask)
+        end
     end
+
     outputs
 end
 
+reconstructparent(A, constructor) = GeoArray(A; data=constructor(parent(A)))
+
 period_startdates(startdate, period, nperiods) = [startdate + p * period for p in 0:nperiods-1]
 
-subset_startdates(periodstart, periodend, substarts) = begin 
+subset_startdates(periodstart, periodend, substarts) = begin
     # Get the first date in the period
-    firstind = searchsortedfirst(substarts, periodstart)
-    if firstind > length(substarts) || substarts[firstind] > periodend 
-        error("No subperiods for period starting $periodstart")
+    firstind = max(1, searchsortedfirst(substarts, periodstart))
+    # if firstind > length(substarts) || substarts[firstind] > periodend
+        # error("No subperiods for period starting $periodstart")
+    # end
+    local lastind = searchsortedlast(substarts, periodend)
+    # println((lastind, substarts[lastind], periodstart, periodend, substarts[lastind] > periodend))
+    if substarts[lastind] < periodend
+        substarts[firstind:lastind]
+    else
+        substarts[firstind:lastind-1]
     end
-    lastind = searchsortedfirst(substarts, periodend) - 1
-    substarts[firstind:lastind]
 end
 
-"""
-Combine rates from all the model components for the current timestep data.
-
-This recursive `@inline` method should fuse broadcasting accross all methods allowing 
-the compiler to join them into a single CPU or GPU broadcast.
-"""
-@inline conditionalrate(models::Tuple, stack) = begin
-    model = first(models)
-    conditionalrate.(Ref(model), stack[keys(model)]) .+ conditionalrate(tail(models), stack)
-end
-@inline conditionalrate(models::Tuple{}, stack) = 0
-
-@inline conditionalrate(model, val) = condition(model, val) ? rate(model, val) : 0
+@inline conditionalrate(models::Tuple, stackbuffer) = 
+    conditionalrate.(Ref(first(models)), parent(stackbuffer[keys(first(models))])) .+ conditionalrate(tail(models), stackbuffer)
+@inline conditionalrate(models::Tuple{}, stackbuffer) = 0
+@inline conditionalrate(model::RateModel, val) = condition(model, val) ? typeof(val)(rate(model, val)) : zero(val) 
 
 end # module
