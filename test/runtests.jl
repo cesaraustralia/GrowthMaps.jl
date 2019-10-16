@@ -120,8 +120,12 @@ end
                        constructor=identity)
     @test typeof(dims(output)) <: Tuple{Lat,Lon,Time}
     @test length(val(dims(output, Time))) == 4
-    @test_broken output[Time(DateTime(2016, 1))] # == TODO
-    @test_broken output[Time(DateTime(2016, 2))] # == TODO
+    dims(output, Time)
+
+    @test_broken output[Time(DateTime(2016, 1, 1))] # == TODO
+    @test_broken output[Time(DateTime(2016, 1, 16))] # == TODO
+    @test_broken output[Time(DateTime(2016, 1, 31))] # == TODO
+    @test_broken output[Time(DateTime(2016, 2, 15))] # == TODO
 
     output = mapgrowth(model, series;
                        startdate=startdate,
@@ -131,4 +135,6 @@ end
                        subperiod_starts=subperiod_starts,
                        constructor=identity)
     @test length(val(dims(output, Time))) == 2
+    @test_broken output[Time(DateTime(2016, 1))] # == TODO
+    @test_broken output[Time(DateTime(2016, 2))] # == TODO
 end
