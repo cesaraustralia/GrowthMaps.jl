@@ -14,11 +14,12 @@ upperdata = GeoArray([9 8 7
 tempdata = GeoArray([270.0 280.0 290.0
                      300.0 310.0 320.0], dimz)
 
+key = :lower
+threshold = 5K
+mortalityrate = -1/K
+lower = LowerStress(key, threshold, mortalityrate)
+    
 @testset "Lower stress" begin
-    key = :lower
-    threshold = 5K
-    mortalityrate = -1/K
-    lower = LowerStress(key, threshold, mortalityrate)
     @test keys(lower) == :lower
     @test condition.(Ref(lower), lowerdata) == [true true true
                                                 true false  false]
@@ -26,11 +27,12 @@ tempdata = GeoArray([270.0 280.0 290.0
                                                       -1  0  0]
 end
 
+key = :upper
+threshold = 6K
+mortalityrate = -2/K
+upper = UpperStress(key, threshold, mortalityrate)
+
 @testset "Upper stress" begin
-    key = :upper
-    threshold = 6K
-    mortalityrate = -2/K
-    upper = UpperStress(key, threshold, mortalityrate)
     @test keys(upper) == :upper
     @test condition.(Ref(upper), upperdata) == [true  true  true
                                                 false false false]
@@ -38,18 +40,18 @@ end
                                                        0  0  0]
 end
 
-@testset "Schoolfield Intrinsic growth" begin
-    key = :temp
-    p = 0.3
-    ΔH_A = 2e4cal * mol^-1
-    ΔH_L = -1e5cal * mol^-1
-    ΔH_H = 3e5cal * mol^-1
-    T_halfL = 250.0K
-    T_halfH = 300.0K
-    T_ref = K(25.0°C)
-    R = Unitful.R
+key = :temp
+p = 0.3
+ΔH_A = 2e4cal * mol^-1
+ΔH_L = -1e5cal * mol^-1
+ΔH_H = 3e5cal * mol^-1
+T_halfL = 250.0K
+T_halfH = 300.0K
+T_ref = K(25.0°C)
+R = Unitful.R
+growth = SchoolfieldIntrinsicGrowth(key, p, ΔH_A, ΔH_L, ΔH_H, T_halfL, T_halfH, T_ref, R)
 
-    growth = SchoolfieldIntrinsicGrowth(key, p, ΔH_A, ΔH_L, ΔH_H, T_halfL, T_halfH, T_ref, R)
+@testset "Schoolfield Intrinsic growth" begin
     @test keys(growth) == :temp
     @test_broken condition.(Ref(growth), tempdata) # == TODO
     @test_broken conditionalrate.(Ref(growth), tempdata) # == TODO
@@ -67,7 +69,6 @@ end
     nperiods = 2
     period = Month(1)
     startdate = DateTime(2016)
-
     @testset "Test generation of start dates" begin
         @test period_startdates(startdate, period, nperiods) == [DateTime(2016, 1, 1), DateTime(2016, 2, 1)]
     end
@@ -137,4 +138,11 @@ end
     @test length(val(dims(output, Time))) == 2
     @test_broken output[Time(DateTime(2016, 1))] # == TODO
     @test_broken output[Time(DateTime(2016, 2))] # == TODO
+end
+
+# We use wget and unzip to handle files, so skip windows
+if !Sys.iswindows() 
+    @testset "SMAP" begin
+        include("smap.jl")
+    end
 end
