@@ -64,7 +64,7 @@ mapgrowth(model::Tuple, series::AbstractGeoSeries;
     # Setup output vector
     # Make a 3 dimensional GeoArray for output, adding the time dimension
     # to init (there should be a function for this in DimensionalData.jl - growdim?
-    outputs = rebuild(init; data=zeros(size(init)..., nperiods), dims=(dims(init)..., Time(periodstarts)))
+    output = rebuild(init; data=zeros(size(init)..., nperiods), dims=(dims(init)..., Time(periodstarts)))
 
     for p in 1:nperiods
         periodstart = periodstarts[p]
@@ -78,19 +78,19 @@ mapgrowth(model::Tuple, series::AbstractGeoSeries;
             for t in 1:size(subseries, Time)
                 println("    ", val(dims(subseries, Time))[t])
                 copy!(stackbuffer, subseries[t])
-                A[Time(p)] .+= conditionalrate(model, stackbuffer)
+                output[Time(p)] .+= conditionalrate(model, stackbuffer)
                 n += 1
             end
         end
         if n > 0
-            A[Time(p)] .*= parent(mask) ./ n
+            output[Time(p)] .*= parent(mask) ./ n
         else
             println("    No files found for this period")
-            A[Time(p)] .*= parent(mask)
+            output[Time(p)] .*= parent(mask)
         end
     end
 
-    outputs
+    output
 end
 
 reconstructparent(A, constructor) = GeoArray(A; data=constructor(parent(A)))
