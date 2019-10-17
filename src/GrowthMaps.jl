@@ -100,11 +100,10 @@ period_startdates(startdate, period, nperiods) = [startdate + p * period for p i
 subset_startdates(periodstart, periodend, substarts) = begin
     # Get the first date in the period
     firstind = max(1, searchsortedfirst(substarts, periodstart))
-    # if firstind > length(substarts) || substarts[firstind] > periodend
-        # error("No subperiods for period starting $periodstart")
-    # end
+    if firstind > length(substarts) || substarts[firstind] > periodend
+        @warn "No subperiods found for period starting $periodstart"
+    end
     local lastind = searchsortedlast(substarts, periodend)
-    # println((lastind, substarts[lastind], periodstart, periodend, substarts[lastind] > periodend))
     if substarts[lastind] < periodend
         substarts[firstind:lastind]
     else
