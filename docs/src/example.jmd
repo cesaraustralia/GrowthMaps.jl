@@ -22,26 +22,48 @@ using GeoData: Time
 # Load some Unitful.jl units
 using Unitful: °C, K, cal, mol
 basedir = Pkg.dir("GrowthMaps")
-
-# download some smap files?
 ```
 
-Load the file series and set a window for the data that is loaded, to save
-processing time:
-
+Download some SMAP data to use in the model:
 
 ```julia; results=hidden
-series = SMAPseries(joinpath(basedir, "test");) 
-                    window=(Lon<|Between(-125, -75), Lat(150:480))
-                    ) ;
-DimensionalData.dims2indices(GeoData.childdims(series), window)
+zipurl = "https://media.githubusercontent.com/media/cesaraustralia/GrowthMaps.jl/data/SMAP_aggregated27km.zip"
+zipfilename = "SMAP_aggregated27km.zip"
+folder = "SMAP_aggregated27km"
+
+isfile(zipfilename) || download(zipurl)
+run(`unzip -o $zipfilename`)
+filenames = readdir(folder)
+```
+
+Separate out wilting and surface temp filenames using `filter`:
+
+```julia; results=hidden
+wilting = joinpath.(Ref(folder), filter(fn -> occursin(r"land_fraction_wilting", fn), filenames))
+surface_temp = joinpath.(Ref(folder), filter(fn -> occursin(r"surface_temp", fn), filenames))
+```
+
+Get series dates from `surface_temp` files using regex:
+
+```julia; results=hidden
+df = DateFormat("yyyymmddTHHMMSS");
+dates = DateTime.(replace.(surface_temp, Ref(r".*_(\d+T\d+).tif" => s"\1")), Ref(df))
+```
+
+```julia; results=hidden
+A = GDALarray(surface_temp[1])
+stacks = [GDALstack((land_fraction_wilting=wilting[i], surface_temp=surface_temp[i]); 
+                    dims=dims(A)) for i in 1:length(surface_temp)]
+stacks[1][:surface_temp]
+series = GeoSeries(stacks, (Time(dates),));
 ```
 
 
 We can plot a layer from a file at some date in the series:
 
 ```julia; results=hidden
-series[Near(Date(2016))][:surface_temp] |> plot
+pyplot()
+series[Near(DateTime(2016,1))][:surface_temp] |> plot
 savefig("build/assets/surface_temp.png")
 ```
 
@@ -94,7 +116,7 @@ wiltstress = UpperStress(:land_fraction_wilting, wiltthresh, wiltmort);
 
 ## Define a model
 
-First we'll define a simple model, that only calculates growth rate
+First we'll define a simple model that only calculates growth rate.
 
 ```julia; results=hidden
 model = growth;
@@ -113,10 +135,8 @@ The create a plot of the sixth month.
 output[Time(1)] |> plot
 ```
 
-We can see it doesn't really capture growth dynamics - growth rates are very
-high in dry desert regions.
-
-## Combine multiple components into a model
+We can see it doesn't really capture realistic population dynamics - we have not 
+growth rates below zero!
 
 To build a more complex (and hopefully accurate) model, we can chain components 
 together in a tuple:
@@ -133,13 +153,14 @@ output = mapgrowth(model, series; period=Month(1),
 output[Time(1)] |> plot
 ```
 
-We can then define a full model with a growth rate and three stressors:
+That looks better. There are negative growth rates in the desert now.
+Now lets define a full model with growth and three stressors:
 
 ```julia; results=hidden
 model = growth, coldstress, heatstress, wiltstress
 output = mapgrowth(model, series; period=Month(1), 
                    nperiods=12, subperiod=Day(1));
-output[Time(1)] |> plot
+output[Time(4)] |> plot
 savefig("build/assets/growthrates.png");
 ```
 
@@ -190,7 +211,7 @@ that will hold the layer key symbol. Then use one type parameter for each type p
 high performance.  You can use unicode special characters for parameter names.
 
 ```julia
-struct SchoolfieldIntrinsicGrowth{K,P,HA,HL,HH,TL,TH,TR,R} <: GrowthModel{K}
+struct SchoolfieldIntrinsicGrowth2{K,P,HA,HL,HH,TL,TH,TR,R} <: GrowthModel{K}
     p::P
     ΔH_A::HA
     ΔH_L::HL
