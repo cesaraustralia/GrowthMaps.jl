@@ -17,7 +17,7 @@ fast. If you have a GPU you may want to try running more days.
 
 
 ```julia; results=hidden
-using GrowthMaps, GeoData, Dates, Plots, Unitful, Pkg
+using GrowthMaps, GeoData, Dates, Plots, Unitful, Pkg, Statistics
 using GeoData: Time
 # Load some Unitful.jl units
 using Unitful: °C, K, cal, mol
@@ -161,7 +161,8 @@ Now lets define a full model with growth and three stressors:
 model = growth, coldstress, heatstress, wiltstress
 output = mapgrowth(model, series; period=Month(1), 
                    nperiods=12, subperiod=Day(1));
-output[Time(4)] |> plot
+dims(output)
+mean(output[Band(1)]; dims=Time) |> plot
 savefig("build/assets/growthrates.png");
 ```
 
