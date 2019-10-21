@@ -55,7 +55,6 @@ dates = DateTime.(replace.(surface_temp, Ref(r".*_(\d+T\d+).tif" => s"\1")), Ref
 A = GDALarray(surface_temp[1])
 stacks = [GDALstack((land_fraction_wilting=wilting[i], surface_temp=surface_temp[i]); 
                     dims=dims(A)) for i in 1:length(surface_temp)]
-stacks[1][:surface_temp]
 series = GeoSeries(stacks, (Time(dates),));
 ```
 
@@ -235,7 +234,7 @@ Notice we multiply the array value by `oneunit` of the `T_ref` variable to allow
 using Unitful.jl units (K), without specifying them in the array.
 
 ```julia
-@inline rate(m::SchoolfieldIntrinsicGrowth, x) = begin
+@inline rate(m::SchoolfieldIntrinsicGrowth2, x) = begin
     x *= oneunit(m.T_ref)
     m.p * x/m.T_ref * exp(m.ΔH_A/m.R * (1/m.T_ref - 1/x)) /
         (1 + exp(m.ΔH_L/m.R * (1/m.T_halfL - 1/x)) + exp(m.ΔH_H/m.R * (1/m.T_halfH - 1/x)))
