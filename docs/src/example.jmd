@@ -34,7 +34,7 @@ folder = "SMAP_aggregated27km"
 
 isfile(zipfilename) || download(joinpath(dataurl, zipfilename))
 run(`unzip -o $zipfilename`)
-filenames = readdir(folder)
+filenames = readdir(folder);
 ```
 
 Separate out wilting and surface temp filenames using `filter`:
@@ -48,7 +48,7 @@ Get series dates from `surface_temp` files using regex:
 
 ```julia; results=hidden
 df = DateFormat("yyyymmddTHHMMSS");
-dates = DateTime.(replace.(surface_temp, Ref(r".*_(\d+T\d+).tif" => s"\1")), Ref(df))
+dates = DateTime.(replace.(surface_temp, Ref(r".*_(\d+T\d+).tif" => s"\1")), Ref(df));
 ```
 
 ```julia; results=hidden
