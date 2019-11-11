@@ -53,8 +53,11 @@ growth = SchoolfieldIntrinsicGrowth(key, p, ΔH_A, ΔH_L, ΔH_H, T_halfL, T_half
 
 @testset "Schoolfield Intrinsic growth" begin
     @test keys(growth) == :temp
-    @test_broken condition.(Ref(growth), tempdata) # == TODO
-    @test_broken conditionalrate.(Ref(growth), tempdata) # == TODO
+    # TODO : fill in zero values with expected values
+    @test_broken condition.(Ref(growth), tempdata) == [-0 -0 -0
+                                                       -0  0  0]
+    @test_broken conditionalrate.(Ref(growth), tempdata) == [-0 -0 -0
+                                                             -0  0  0] 
 end
 
 
@@ -111,7 +114,6 @@ end
     series = GeoSeries([stack, stack2, stack3, stack4], dimz)
     model = growth, lower, upper
 
-    # TODO test output
     output = mapgrowth(model, series;
                        startdate=startdate,
                        nperiods=4,
@@ -123,10 +125,15 @@ end
     @test length(val(dims(output, Time))) == 4
     dims(output, Time)
 
-    @test_broken output[Time(DateTime(2016, 1, 1))] # == TODO
-    @test_broken output[Time(DateTime(2016, 1, 16))] # == TODO
-    @test_broken output[Time(DateTime(2016, 1, 31))] # == TODO
-    @test_broken output[Time(DateTime(2016, 2, 15))] # == TODO
+    # TODO test output: fill in zero values with expected values
+    @test_broken output[Time(DateTime(2016, 1, 1))] == [-0 0 -0
+                                                        -0  0  0]
+    @test_broken output[Time(DateTime(2016, 1, 16))] == [-0 -0 -0
+                                                         -0  0  0] 
+    @test_broken output[Time(DateTime(2016, 1, 31))] == [-0 -0 -0
+                                                         -0  0  0]
+    @test_broken output[Time(DateTime(2016, 2, 15))] == [-0 -0 -0
+                                                         -0  0  0]
 
     output = mapgrowth(model, series;
                        startdate=startdate,
@@ -136,8 +143,11 @@ end
                        subperiod_starts=subperiod_starts,
                        constructor=identity)
     @test length(val(dims(output, Time))) == 2
-    @test_broken output[Time(DateTime(2016, 1))] # == TODO
-    @test_broken output[Time(DateTime(2016, 2))] # == TODO
+    # TODO test output: fill in zero values with expected values
+    @test_broken output[Time(DateTime(2016, 1))] == [-0 -0 -0
+                                                     -0  0  0]
+    @test_broken output[Time(DateTime(2016, 2))] == [-0 -0 -0
+                                                     -0  0  0]
 end
 
 # We use wget and unzip to handle files, so skip windows
