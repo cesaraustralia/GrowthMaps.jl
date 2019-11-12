@@ -18,7 +18,7 @@ key = :lower
 threshold = 5K
 mortalityrate = -1/K
 lower = LowerStress(key, threshold, mortalityrate)
-    
+
 @testset "Lower stress" begin
     @test keys(lower) == :lower
     @test condition.(Ref(lower), lowerdata) == [true true true
@@ -53,11 +53,12 @@ growth = SchoolfieldIntrinsicGrowth(key, p, ΔH_A, ΔH_L, ΔH_H, T_halfL, T_half
 
 @testset "Schoolfield Intrinsic growth" begin
     @test keys(growth) == :temp
-    # TODO : fill in zero values with expected values
     @test_broken condition.(Ref(growth), tempdata) == [-0 -0 -0
                                                        -0  0  0]
-    @test conditionalrate.(Ref(growth), tempdata) == [8.185404e-03 3.214079e-02 1.149850e-01 
-                                                      1.891427e-01 1.026881e-07 7.178805e-14] 
+    rates = Array(conditionalrate.(Ref(growth), tempdata))
+    refrates = [8.034064e-03 3.154654e-02 1.128590e-01; 1.856456e-01 1.007895e-07 7.046076e-14]
+    # The original R code was not very accurate, we only use two significant figures.
+    @test rates ≈ refrates rtol = 1e-2
 end
 
 
@@ -129,7 +130,7 @@ end
     @test_broken output[Time(DateTime(2016, 1, 1))] == [-0 0 -0
                                                         -0  0  0]
     @test_broken output[Time(DateTime(2016, 1, 16))] == [-0 -0 -0
-                                                         -0  0  0] 
+                                                         -0  0  0]
     @test_broken output[Time(DateTime(2016, 1, 31))] == [-0 -0 -0
                                                          -0  0  0]
     @test_broken output[Time(DateTime(2016, 2, 15))] == [-0 -0 -0
@@ -151,7 +152,7 @@ end
 end
 
 # We use wget and unzip to handle files, so skip windows
-if !Sys.iswindows() 
+if !Sys.iswindows()
     @testset "SMAP" begin
         include("smap.jl")
     end
