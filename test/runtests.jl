@@ -56,8 +56,8 @@ growth = SchoolfieldIntrinsicGrowth(key, p, ΔH_A, ΔH_L, ΔH_H, T_halfL, T_half
     # TODO : fill in zero values with expected values
     @test_broken condition.(Ref(growth), tempdata) == [-0 -0 -0
                                                        -0  0  0]
-    @test_broken conditionalrate.(Ref(growth), tempdata) == [-0 -0 -0
-                                                             -0  0  0] 
+    @test conditionalrate.(Ref(growth), tempdata) == [8.185404e-03 3.214079e-02 1.149850e-01 
+                                                      1.891427e-01 1.026881e-07 7.178805e-14] 
 end
 
 
