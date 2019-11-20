@@ -4,15 +4,21 @@ authors = ["Rafael Schouten <rafaelschouten@gmail.com>"]
 version = "0.1.0"
 
 [deps]
+ConstructionBase = "187b0558-2788-49d3-abe0-74a17ed4e7c9"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 GeoData = "9b6fcbb8-86d6-11e9-1ce7-23a6bb139a78"
-GPUifyLoops = "ba82f77b-6841-5d2e-bd9f-4daf811aec27"
-HDF5 = "f67ccb44-e63f-5c2f-98bd-6dc0ccc4ba2f"
-Mixers = "2a8e4939-dab8-5edc-8f64-72a8776f13de"
+FieldMetadata = "bf96fef3-21d2-5d20-8afa-0e7d4c32a885"
 Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
+[compat]
+julia = "1"
+ConstructionBase = "1"
+FieldMetadata = "0.1"
+Unitful  = "0.17"
+
 [extras]
+HDF5 = "f67ccb44-e63f-5c2f-98bd-6dc0ccc4ba2f"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test"]
+test = ["HDF5", "Test"]

@@ -6,7 +6,7 @@ author : Rafael Schouten, James Maino
 # Growth rate calculation
 
 In this example we will calculate the expected population growth rates of
-Spotted Wing Drosophila _D. suzukii_, for each month of the year on a 9km grid
+Spotted Wing Drosophila (SWD) _D. suzukii_, for each month of the year on a 9km grid
 accross North America.
 
 We'll subsample down to using just one day per month so the model runs really
@@ -17,11 +17,15 @@ fast. If you have a GPU you may want to try running more days.
 
 
 ```julia; results=hidden
-using GrowthMaps, GeoData, Dates, Plots, Unitful, Pkg, Statistics
+using Revise
+using GrowthMaps, GeoData, Dates, Plots, Unitful, UnitfulRecipes, Pkg, Statistics
+using ArchGDAL, NCDatasets
+using CSV, DataFrames, Tables
 using GeoData: Time
 # Load some Unitful.jl units
 using Unitful: °C, K, cal, mol
-basedir = Pkg.dir("GrowthMaps")
+basedir = joinpath(Pkg.dir("GrowthMaps"), "docs")
+mkpath(joinpath(basedir, "build"))
 ```
 
 Download some SMAP data to use in the model:
@@ -29,19 +33,19 @@ Download some SMAP data to use in the model:
 ```julia; results=hidden
 dataurl = "https://media.githubusercontent.com/media/cesaraustralia/GrowthMaps.jl/data"
 zipfilename = "SMAP_aggregated27km.zip"
+zipfilepath = joinpath(basedir, zipfilename)
+unzippedfolder = joinpath(basedir, "SMAP_aggregated27km")
 
-folder = "SMAP_aggregated27km"
-
-isfile(zipfilename) || download(joinpath(dataurl, zipfilename))
-run(`unzip -o $zipfilename`)
-filenames = readdir(folder);
+isfile(zipfilepath) || download(zipfilename)
+run(`unzip -o $zipfilepath -d $unzippedfolder`)
+filenames = readdir(unzippedfolder);
 ```
 
 Separate out wilting and surface temp filenames using `filter`:
 
 ```julia; results=hidden
-wilting = joinpath.(Ref(folder), filter(fn -> occursin(r"land_fraction_wilting", fn), filenames))
-surface_temp = joinpath.(Ref(folder), filter(fn -> occursin(r"surface_temp", fn), filenames))
+wilting = joinpath.(Ref(unzippedfolder), filter(fn -> occursin(r"land_fraction_wilting", fn), filenames))
+surface_temp = joinpath.(Ref(unzippedfolder), filter(fn -> occursin(r"surface_temp", fn), filenames))
 ```
 
 Get series dates from `surface_temp` files using regex:
@@ -52,19 +56,17 @@ dates = DateTime.(replace.(surface_temp, Ref(r".*_(\d+T\d+).tif" => s"\1")), Ref
 ```
 
 ```julia; results=hidden
-A = GDALarray(surface_temp[1])
-stacks = [GDALstack((land_fraction_wilting=wilting[i], surface_temp=surface_temp[i]); 
-                    dims=dims(A)) for i in 1:length(surface_temp)]
-series = GeoSeries(stacks, (Time(dates),));
+stacks = [GeoStack((land_fraction_wilting=GDALarray(wilting[i]), 
+    surface_temp=GDALarray(surface_temp[i]))) for i in 1:length(surface_temp)];
+series = GeoSeries(stacks, (Time(dates),); window=(Band(1),));
 ```
 
 
 We can plot a layer from a file at some date in the series:
 
 ```julia; results=hidden
-pyplot()
 series[Near(DateTime(2016,1))][:surface_temp] |> plot
-savefig("build/assets/surface_temp.png")
+savefig(joinpath(basedir, "build/assets/surface_temp.png"))
 ```
 
 ![Sea surface temperature](../assets/surface_temp.png)
@@ -82,22 +84,54 @@ When defining model components, the first parameter is always the key for the
 stack layer, from the list we saw earlier using `keys()`.
 
 ```julia; results=hidden
-p = 3.377850e-01
-ΔH_A = 3.574560e+04cal/mol
-ΔH_L = -1.108990e+05cal/mol
-ΔH_H = 3.276604e+05cal/mol
-Thalf_L = 2.359187e+02K
-Thalf_H = 2.991132e+02K
+p = 3e-01
+ΔH_A = 3e4cal/mol
+ΔH_L = -1e5cal/mol
+ΔH_H = 3e5cal/mol
+Thalf_L = 2e2K
+Thalf_H = 3e2K
 T_ref = K(25.0°C)
 R = Unitful.R
 growth = SchoolfieldIntrinsicGrowth(:surface_temp, p, ΔH_A, ΔH_L, 
                          ΔH_H, Thalf_L, Thalf_H, T_ref, R);
 ```
 
-Now we define stress models for cold, heat and wilt stress. As these insects
-live on and around plants, we use wilting as an indicater of stress induced by
-lack of moisture. These models have a threshold in K and mortality rate per
-degree K. `LowerStress` models stress below the given threshold, while
+If these are estimated parameters, We can fit the model to a a dataset of growth
+rate and temperature. First extract our independent and dependent variables (xs
+and ys) from CSV, converting Celsius values to Kelvin.
+
+```julia; results=hidden
+data = CSV.File(joinpath(basedir, "swd_ecophys_data.csv")) |> 
+       Tables.select(:x_value, :y_value, :y_key) |> DataFrame
+data = filter(d -> d.y_key == "r_m", data) |> dropmissing
+
+# Convert x data from °C to Kelvin
+xs = data.x_value * °C .|> K
+ys = data.y_value
+```
+
+Now we can fit the model. The `fitrate` function provides an easy way to fit the
+models in GrowthMaps, or your own custom `RateModel`s, using the LsqFit.jl
+package.
+
+```julia; results=hidden 
+fittedgrowth = GrowthMaps.fit(growth, xs, ys)
+```
+
+Now plot the fit against the data:
+
+```julia; results=hidden
+p = plot(x -> GrowthMaps.rate(fittedgrowth, x), 270.0:0.1:310.0; label="fitted")
+scatter!(p, xs, ys; label="observed ")
+```
+
+Now we will define stress models for cold, heat and wilt stress. Stress models model
+processes that produce negative deathrates in the population, as oposed to rate
+models, whos minimum growth rate is zero. 
+
+As SWD live on and around plants, we use wilting as an indicater of stress
+induced by lack of moisture.  Stress models have a threshold in K and mortality
+rate per degree K.  `LowerStress` models stress below the given threshold, while
 `UpperStress` models stress induced above a threshold.
 
 ```julia; results=hidden
@@ -119,7 +153,7 @@ wiltstress = UpperStress(:land_fraction_wilting, wiltthresh, wiltmort);
 First we'll define a simple model that only calculates growth rate.
 
 ```julia; results=hidden
-model = growth;
+model = fittedgrowth;
 ```
 
 And run it:
@@ -135,14 +169,13 @@ The create a plot of the sixth month.
 output[Time(1)] |> plot
 ```
 
-We can see it doesn't really capture realistic population dynamics - we have not 
-growth rates below zero!
+We can see it doesn't really capture realistic population dynamics - we have no 
+growth rates below zero! We need to add some stress models.
 
-To build a more complex (and hopefully accurate) model, we can chain components 
-together in a tuple:
+To build a more complex model, we can chain components together in a tuple:
 
 ```julia; results=hidden
-model = growth, wiltstress;
+model = fittedgrowth, heatstress;
 ```
 
 And again, run and plot them:
@@ -150,30 +183,26 @@ And again, run and plot them:
 ```julia; results=hidden
 output = mapgrowth(model, series; period=Month(1), 
                    nperiods=12, subperiod=Day(1));
-output[Time(1)] |> plot
 ```
 
 That looks better. There are negative growth rates in the desert now.
 Now lets define a full model with growth and three stressors:
 
 ```julia; results=hidden
-model = growth, coldstress, heatstress, wiltstress
+model = fittedgrowth, coldstress, heatstress, wiltstress
 output = mapgrowth(model, series; period=Month(1), 
                    nperiods=12, subperiod=Day(1));
 output[Time(1)] |> plot
-savefig("build/assets/growthrates.png");
+savefig(joinpath(basedir, "build/assets/growthrates.png"));
 ```
 
 ![Growth Rates](../assets/growthrates.png)
 
-Save the output to the `docs/build` folder (or wherever you like).
+Save the output as a NetCDF file, as tif wont handle the
+time dimension.
 
 ```julia; results=hidden
-using JLD2
-path = joinpath(basedir, "docs/build")
-mkpath(path)
-growthrates = output
-@save joinpath(path, "growthrates.jld2") growthrates 
+GeoData.save(NCDarray, "growthrates.ncd", output)
 ```
 
 ## Compare with observation data
@@ -192,7 +221,7 @@ be plotting using Plots.jl.
 ```julia; results=hiddeats
 using CSV
 csvurl = "https://raw.githubusercontent.com/cesaraustralia/GrowthMaps.jl/data/"
-csvfilename = "Oersted_occurrence.csv"
+csvfilename = joinpath(basedir, "Oersted_occurrence.csv")
 isfile(csvfilename) || download(joinpath(csvurl, csvfilename))
 obs = CSV.File(csvfilename)
 scatter!(p, collect(zip(obs.Longitude, obs.Latitude)); 
@@ -202,8 +231,10 @@ scatter!(p, collect(zip(obs.Longitude, obs.Latitude));
 ```
 
 
-Writing your own models. Here we can analise how the `SchoolfieldIntrinsicGrowth`
-model works, in order to add new formulations. 
+# Writing your own models. 
+
+Here we analise how the `SchoolfieldIntrinsicGrowth` model works, in order to add new 
+formulations of your own. 
 
 First we need to define a julia struct to hold our parameters and choose the rate method 
 to dispatch on in the simulation.
@@ -212,17 +243,19 @@ It should inherit from `GrowthModel` or `StressModel`, and must have a `K` type 
 that will hold the layer key symbol. Then use one type parameter for each type parameter 
 (here `P`, `HA` etc) these allow different float or unit types to share the same code with 
 high performance.  You can use unicode special characters for parameter names.
+The `@flattenable` macro allows removing fields from the struct when fitting the model 
+parameters in `fit`, which uses Flatten.jl. Here, the `T_ref` feild should not be optimised.
 
 ```julia
-struct SchoolfieldIntrinsicGrowth2{K,P,HA,HL,HH,TL,TH,TR,R} <: GrowthModel{K}
-    p::P
-    ΔH_A::HA
-    ΔH_L::HL
-    ΔH_H::HH
-    T_halfL::TL
-    T_halfH::TH
-    T_ref::TR
-    R::R
+@flattenable struct SchoolfieldIntrinsicGrowth{K,P,HA,HL,HH,TL,TH,TR,R} <: GrowthModel{K}
+    p::P         | true
+    ΔH_A::HA     | true
+    ΔH_L::HL     | true
+    ΔH_H::HH     | true
+    T_halfL::TL  | true
+    T_halfH::TH  | true
+    T_ref::TR    | false
+    R::R         | false
 end
 ```
 
@@ -230,11 +263,14 @@ Then we can define a method of `rate` that will be run for each cell in the grid
 The `@inline` macro ensures that the code can be complied together with the other
 models into a single broadcast operation, which in most cases improves performance.
 Fields of the `SchoolfieldIntrinsicGrowth` are used as parameters in the equation.
-Notice we multiply the array value by `oneunit` of the `T_ref` variable to allow 
-using Unitful.jl units (K), without specifying them in the array.
+Notice we add a version that multiplies the array value by `oneunit` of the `T_ref` 
+variable to allow using Unitful.jl units (K), for when they are not specified them 
+in the array:
 
 ```julia
-@inline rate(m::SchoolfieldIntrinsicGrowth2, x) = begin
+@inline rate(m::SchoolfieldIntrinsicGrowth1, x::Real) = 
+    rate(m::SchoolfieldIntrinsicGrowth1, x * u"K") 
+@inline rate(m::SchoolfieldIntrinsicGrowth2, x::Quantity) = begin
     x *= oneunit(m.T_ref)
     m.p * x/m.T_ref * exp(m.ΔH_A/m.R * (1/m.T_ref - 1/x)) /
         (1 + exp(m.ΔH_L/m.R * (1/m.T_halfL - 1/x)) + exp(m.ΔH_H/m.R * (1/m.T_halfH - 1/x)))

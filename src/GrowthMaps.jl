@@ -1,18 +1,28 @@
 module GrowthMaps
+
 # Use the README as the module docs
 @doc read(joinpath(dirname(@__DIR__), "README.md"), String) GrowthMaps
 
-using Unitful, HDF5, Dates, GeoData
+using ConstructionBase, 
+      Dates, 
+      FieldMetadata,
+      Flatten,
+      GeoData, 
+      HDF5, 
+      LsqFit, 
+      Unitful 
 
+import FieldMetadata: @flattenable, flattenable
 using GeoData: Time, rebuild
 using Unitful: °C, K
 using Base: tail
 
-export mapgrowth
+export mapgrowth, fit
 
 export RateModel, GrowthModel, SchoolfieldIntrinsicGrowth, StressModel, LowerStress, UpperStress
 
 include("models.jl")
+include("fit.jl")
 
 
 """
@@ -55,7 +65,7 @@ mapgrowth(model::Tuple, series::AbstractGeoSeries;
     arraygen = (reconstructparent(stack[key], constructor) for key in reqkeys)
     stackbuffer = GeoStack(stack; data=NamedTuple{reqkeys}(Tuple(arraygen)))
     A = first(values(stackbuffer));
-    mask = GeoData.mask(A)
+    mask = GeoData.boolmask(A)
     # Create an init array without refdims or a name
     init = GeoArray(A; data=zero(parent(A)), name=Symbol(""), refdims=());
 
@@ -64,7 +74,8 @@ mapgrowth(model::Tuple, series::AbstractGeoSeries;
     # Setup output vector
     # Make a 3 dimensional GeoArray for output, adding the time dimension
     # to init (there should be a function for this in DimensionalData.jl - growdim?
-    output = rebuild(init; data=zeros(size(init)..., nperiods), dims=(dims(init)..., Time(periodstarts)))
+    output = rebuild(init; data=zeros(size(init)..., nperiods), 
+                     dims=(dims(init)..., Time(periodstarts)))
 
     for p in 1:nperiods
         periodstart = periodstarts[p]
@@ -88,6 +99,7 @@ mapgrowth(model::Tuple, series::AbstractGeoSeries;
             println("    No files found for this period")
             output[Time(p)] .*= parent(mask)
         end
+        sleep(0)
     end
 
     output
@@ -114,6 +126,6 @@ end
 @inline conditionalrate(models::Tuple, stackbuffer) = 
     conditionalrate.(Ref(first(models)), parent(stackbuffer[keys(first(models))])) .+ conditionalrate(tail(models), stackbuffer)
 @inline conditionalrate(models::Tuple{}, stackbuffer) = 0
-@inline conditionalrate(model::RateModel, val) = condition(model, val) ? typeof(val)(rate(model, val)) : zero(val) 
+@inline conditionalrate(model::RateModel, val) = condition(model, val) ? rate(model, val) : 0
 
 end # module
