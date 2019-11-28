@@ -1,9 +1,16 @@
+using Pkg, ArchGDAL
 zipurl = "https://media.githubusercontent.com/media/cesaraustralia/GrowthMaps.jl/data/SMAP_aggregated27km.zip"
-zipfilename = "SMAP_aggregated27km.zip"
-folder = "SMAP_aggregated27km"
+basedir = joinpath(Pkg.dir("GrowthMaps"), "test")
+folder = joinpath(basedir, "SMAP_aggregated27km")
+zipfilename = joinpath(basedir, "SMAP_aggregated27km.zip")
+nperiods = 12
+period = Month(1)
+subperiod = Day(1)
+startdate = DateTime(2016,1)
+enddate = startdate + nperiods * subperiod
 
 # Download SMAP zip
-isfile(zipfilename) || download(zipurl)
+isfile(zipfilename) || download(zipurl, zipfilename)
 # Unzip
 run(`unzip -o $zipfilename`)
 filenames = readdir(folder)
@@ -20,7 +27,7 @@ A = GDALarray(temp[1])
 stacks = [GDALstack((land_fraction_wilting=wilting[i], surface_temp=temp[i]); 
                     dims=dims(A)) for i in 1:length(temp)]
 stacks[1][:surface_temp]
-series = GeoSeries(stacks, (Time(dates),));
+series = GeoSeries(stacks, (Time(dates; grid=AllignedGrid(;bounds=(startdate, enddate))),));
 
 p = 3.377850e-01
 ΔH_A = 3.574560e+04cal/mol
@@ -29,9 +36,8 @@ p = 3.377850e-01
 Thalf_L = 2.359187e+02K
 Thalf_H = 2.991132e+02K
 T_ref = K(25.0°C)
-R = Unitful.R
 growth = SchoolfieldIntrinsicGrowth(:surface_temp, p, ΔH_A, ΔH_L, 
-                     ΔH_H, Thalf_L, Thalf_H, T_ref, R);
+                     ΔH_H, Thalf_L, Thalf_H, T_ref);
 coldthresh = 7.0°C |> K  # Enriquez2017
 coldmort = -log(1.00) * K^-1
 coldstress = LowerStress(:surface_temp, coldthresh, coldmort)
@@ -48,7 +54,8 @@ model = growth, coldstress, heatstress, wiltstress
 
 # TODO test output
 output = mapgrowth(model, series;
-                   startdate=DateTime(2016,1),
-                   nperiods=12,
-                   period=Month(1),
-                   subperiod=Day(1))
+                   startdate=startdate,
+                   enddate=enddate,
+                   nperiods=nperiods,
+                   period=period,
+                   subperiod=subperiod)

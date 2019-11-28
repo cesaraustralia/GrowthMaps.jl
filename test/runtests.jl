@@ -2,7 +2,6 @@ using GrowthMaps, GeoData, HDF5, Dates, Unitful, Test
 using GeoData: Time, rebuild
 using Unitful: °C, K, hr, d, mol, cal
 using GrowthMaps: rate, condition, conditionalrate, period_startdates, subset_startdates
-using Dates
 
 dimz = Lat(10:20), Lon(100:130)
 
@@ -13,6 +12,10 @@ upperdata = GeoArray([9 8 7
                       6 5 4], dimz)
 tempdata = GeoArray([270.0 280.0 290.0
                      300.0 310.0 320.0], dimz)
+
+lowerunitful = lowerdata * K
+upperunitful = upperdata * K
+tempunitful = tempdata * K
 
 key = :lower
 threshold = 5K
@@ -48,8 +51,7 @@ p = 0.3
 T_halfL = 250.0K
 T_halfH = 300.0K
 T_ref = K(25.0°C)
-R = Unitful.R
-growth = SchoolfieldIntrinsicGrowth(key, p, ΔH_A, ΔH_L, ΔH_H, T_halfL, T_halfH, T_ref, R)
+growth = SchoolfieldIntrinsicGrowth(key, p, ΔH_A, ΔH_L, ΔH_H, T_halfL, T_halfH, T_ref)
 
 @testset "Schoolfield Intrinsic growth" begin
     @test keys(growth) == :temp
@@ -100,19 +102,20 @@ end
 end
 
 @testset "Integration" begin
-
     nperiods = 2
     period = Month(1)
     startdate = DateTime(2016)
     enddate = startdate + period * nperiods
+    subperiod_starts = DateTime.(2016, [1,1,2,2], [1, 16, 1, 16])
 
+    stack1 = GeoStack(NamedTuple{(:lower, :upper, :temp)}((lowerdata, upperdata, tempdata)))
     stack2 = GeoStack(NamedTuple{(:lower, :upper, :temp)}((lowerdata, upperdata, tempdata)))
     stack3 = GeoStack(NamedTuple{(:lower, :upper, :temp)}((lowerdata, upperdata, tempdata)))
     stack4 = GeoStack(NamedTuple{(:lower, :upper, :temp)}((lowerdata, upperdata, tempdata)))
 
     dimz = (Time([DateTime(2016, 1, 1, 9), DateTime(2016, 1, 16, 15),
-                  DateTime(2016, 2, 1, 10), DateTime(2016, 2, 16, 14)]),)
-    series = GeoSeries([stack, stack2, stack3, stack4], dimz)
+                  DateTime(2016, 2, 1, 10), DateTime(2016, 2, 16, 14)]; grid=AllignedGrid()),)
+    series = GeoSeries([stack1, stack2, stack3, stack4], dimz)
     model = growth, lower, upper
 
     output = mapgrowth(model, series;
@@ -122,6 +125,7 @@ end
                        subperiod=Day(1),
                        subperiod_starts=subperiod_starts,
                        constructor=identity)
+
     @test typeof(dims(output)) <: Tuple{Lat,Lon,Time}
     @test length(val(dims(output, Time))) == 4
     dims(output, Time)
@@ -143,6 +147,7 @@ end
                        subperiod=Day(2),
                        subperiod_starts=subperiod_starts,
                        constructor=identity)
+
     @test length(val(dims(output, Time))) == 2
     # TODO test output: fill in zero values with expected values
     @test_broken output[Time(DateTime(2016, 1))] == [-0 -0 -0

@@ -94,14 +94,17 @@ condition(m, x) = true
 A [`StressMortality`](@ref) model where stress occurs below a `threshold` at a
 specified `mortalityrate` for some environmental layer `key`.
 
-Independent variables must be in the same units as 
+Independent variables must be in the same units as
 """
 struct LowerStress{K,T,M} <: StressModel{K}
     threshold::T
     mortalityrate::M
 end
+# TODO set units in the model, this is a temporary hack
 @inline condition(m::LowerStress, x) = x * oneunit(m.threshold) < m.threshold
+@inline condition(m::LowerStress, x::Quantity) = x < m.threshold
 @inline rate(m::LowerStress, x) = (m.threshold - x * oneunit(m.threshold)) * m.mortalityrate
+@inline rate(m::LowerStress, x::Quantity) = (m.threshold - x) * m.mortalityrate
 
 """
     UpperStress(key::Symbol, threshold, mortalityrate)
@@ -114,7 +117,9 @@ struct UpperStress{K,T,M} <: StressModel{K}
     mortalityrate::M
 end
 @inline condition(m::UpperStress, x) = x * oneunit(m.threshold) > m.threshold
+@inline condition(m::UpperStress, x::Quantity) = x > m.threshold
 @inline rate(m::UpperStress, x) = (x * oneunit(m.threshold) - m.threshold) * m.mortalityrate
+@inline rate(m::UpperStress, x::Quantity) = (x - m.threshold) * m.mortalityrate
 
 """
 SchoolfieldIntrinsicGrowth{K}(p, ΔH_A, ΔH_L, ΔH_H, Thalf_L, Thalf_H, T_ref, R)
@@ -129,32 +134,30 @@ The value of the specified data layer _must_ be in Kelvin.
 - `K::Symbol`
 
 ## Arguments
-- `p::P`: reference growth rate at reference temperature `T_ref`
+- `p::P`: growth rate at reference temperature `T_ref`
 - `ΔH_A`: enthalpy of activation of the reaction that is catalyzed by the enzyme, in cal/mol or J/mol.
 - `ΔH_L`: change in enthalpy associated with low temperature inactivation of the enzyme.
 - `ΔH_H`: change in enthalpy associated with high temperature inactivation of the enzyme.
-- `T_halfL`: temperature (K) at which the enzyme is 1/2 active and 1/2 low temperature inactive.
-- `T_halfH`: temperature (K) at which the enzyme is 1/2 active and 1/2 high temperature inactive.
+- `T_halfL`: temperature (Unitful K) at which the enzyme is 1/2 active and 1/2 low temperature inactive.
+- `T_halfH`: temperature (Unitful K) at which the enzyme is 1/2 active and 1/2 high temperature inactive.
 - `T_ref`: Reference temperature in kelvin.
-- `R`: universal gas constant. Use Unitful.R if you are using units.
 
 This can be parameterised from empirical data, (see Zhang et al. 2000; Haghani
 et al. 2006; Chien and Chang 2007) and non-linear least squares regression.
 """
-@flattenable struct SchoolfieldIntrinsicGrowth{K,P,HA,HL,HH,TL,TH,TR,R} <: GrowthModel{K}
-    p::P         | true
-    ΔH_A::HA     | true
-    ΔH_L::HL     | true
-    ΔH_H::HH     | true
-    T_halfL::TL  | true
-    T_halfH::TH  | true
-    T_ref::TR    | false
-    R::R         | false
+@bounds @flattenable struct SchoolfieldIntrinsicGrowth{K,P,HA,HL,HH,TL,TH,TR} <: GrowthModel{K}
+    p::P         | true  | (0.0, 1.0)
+    ΔH_A::HA     | true  | (0.0u"cal/mol", 1e6u"cal/mol")
+    ΔH_L::HL     | true  | (-1e6u"cal/mol", 0.0u"cal/mol")
+    ΔH_H::HH     | true  | (0.0u"cal/mol", 1e6u"cal/mol")
+    T_halfL::TL  | true  | (150.0K, 400K)
+    T_halfH::TH  | true  | (150.0K, 400K)
+    T_ref::TR    | false | _
 end
 
-@inline rate(m::SchoolfieldIntrinsicGrowth, x::Real) = 
-    rate(m::SchoolfieldIntrinsicGrowth, x * u"K") 
+@inline rate(m::SchoolfieldIntrinsicGrowth, x::Real) =
+    rate(m::SchoolfieldIntrinsicGrowth, x * u"K")
 @inline rate(m::SchoolfieldIntrinsicGrowth, x::Quantity) = begin
-    @fastmath m.p * x/m.T_ref * exp(m.ΔH_A/m.R * (1/m.T_ref - 1/x)) /
-        (1 + exp(m.ΔH_L/m.R * (1/m.T_halfL - 1/x)) + exp(m.ΔH_H/m.R * (1/m.T_halfH - 1/x)))
+    @fastmath m.p * x/m.T_ref * exp(m.ΔH_A/R * (1/m.T_ref - 1/x)) /
+        (1 + exp(m.ΔH_L/R * (1/m.T_halfL - 1/x)) + exp(m.ΔH_H/R * (1/m.T_halfH - 1/x)))
 end

@@ -3,23 +3,32 @@ module GrowthMaps
 # Use the README as the module docs
 @doc read(joinpath(dirname(@__DIR__), "README.md"), String) GrowthMaps
 
-using ConstructionBase, 
-      Dates, 
+using ConstructionBase,
+      Dates,
       FieldMetadata,
       Flatten,
-      GeoData, 
-      HDF5, 
-      LsqFit, 
-      Unitful 
+      GeoData,
+      HDF5,
+      LsqFit,
+      Interact,
+      Plots,
+      Unitful,
+      UnitfulRecipes
 
-import FieldMetadata: @flattenable, flattenable
+import FieldMetadata: @flattenable, flattenable, @bounds, bounds
 using GeoData: Time, rebuild
-using Unitful: °C, K
+using Unitful: °C, K, R
 using Base: tail
 
-export mapgrowth, fit
+export mapgrowth, fit, manualfit!
 
-export RateModel, GrowthModel, SchoolfieldIntrinsicGrowth, StressModel, LowerStress, UpperStress
+export RateModel
+
+export GrowthModel, SchoolfieldIntrinsicGrowth
+
+export StressModel, LowerStress, UpperStress
+
+export ModelWrapper
 
 include("models.jl")
 include("fit.jl")
@@ -38,9 +47,9 @@ Combine growth rates accross rate models and subperiods for all required periods
 
 ## Keyword Arguments
 - `nperiods=12`: number of periods returned in the output
-- `startdate=first(bounds(series, Time)))`: starting date of the sequence 
+- `startdate=first(bounds(series, Time)))`: starting date of the sequence
 - `enddate=startdate + period * nperiods`
-- `period=Month(1)`: length of the period to output 
+- `period=Month(1)`: length of the period to output
 - `subperiod=Day(1)`: length of the subperiods used to calculate output, such as a whole day to capture daily fluctuations.
 - `constructor=identity`: Set to CuArray to process with CUDA on your GPU.
 
@@ -51,7 +60,7 @@ mapgrowth(model, series; kwargs...) = mapgrowth((model,), series; kwargs...)
 mapgrowth(model::Tuple, series::AbstractGeoSeries;
           nperiods=1,
           period=Month(1),
-          startdate=first(bounds(series, Time)),
+          startdate=last(GeoData.bounds(series, GeoData.Time)),
           enddate=startdate + period * nperiods,
           subperiod=Day(1),
           subperiod_starts=startdate:subperiod:enddate,
@@ -61,22 +70,23 @@ mapgrowth(model::Tuple, series::AbstractGeoSeries;
     reqkeys = Tuple(union(keys(model)))
     # Make a memory backed stack using only the keys required for the model,
     # on the GPU if `constructor` is CuArray or similar
-    # TODO: make an operation that reqbuilds with a subset of keys in GeoData
+    # TODO: make an operation that rebuilds with a subset of keys in GeoData
     arraygen = (reconstructparent(stack[key], constructor) for key in reqkeys)
     stackbuffer = GeoStack(stack; data=NamedTuple{reqkeys}(Tuple(arraygen)))
     A = first(values(stackbuffer));
     mask = GeoData.boolmask(A)
     # Create an init array without refdims or a name
-    init = GeoArray(A; data=zero(parent(A)), name=Symbol(""), refdims=());
+    init = GeoArray(A; data=zero(parent(A)), name=Symbol(""), refdims=())
 
     dates = val(dims(series, Time))
     periodstarts = period_startdates(startdate, period, nperiods)
     # Setup output vector
     # Make a 3 dimensional GeoArray for output, adding the time dimension
     # to init (there should be a function for this in DimensionalData.jl - growdim?
-    output = rebuild(init; data=zeros(size(init)..., nperiods), 
-                     dims=(dims(init)..., Time(periodstarts)))
+    output = rebuild(init; data=zeros(size(init)..., nperiods),
+                     dims=(dims(init)..., Time(periodstarts; grid=AllignedGrid(; bounds=(startdate, enddate)))))
 
+    println("Running for $(1:nperiods)")
     for p in 1:nperiods
         periodstart = periodstarts[p]
         println("\n", "Processing period starting: ", periodstart)
@@ -100,6 +110,7 @@ mapgrowth(model::Tuple, series::AbstractGeoSeries;
             output[Time(p)] .*= parent(mask)
         end
         sleep(0)
+        yield()
     end
 
     output
@@ -123,9 +134,12 @@ subset_startdates(periodstart, periodend, substarts) = begin
     end
 end
 
-@inline conditionalrate(models::Tuple, stackbuffer) = 
+@inline conditionalrate(models::Tuple, stackbuffer::AbstractGeoStack) =
     conditionalrate.(Ref(first(models)), parent(stackbuffer[keys(first(models))])) .+ conditionalrate(tail(models), stackbuffer)
-@inline conditionalrate(models::Tuple{}, stackbuffer) = 0
+@inline conditionalrate(models::Tuple{}, x::AbstractGeoStack) = 0
+@inline conditionalrate(models::Tuple, vals::NamedTuple) =
+    conditionalrate(first(models), vals[keys(first(models))]) .+ conditionalrate(tail(models), vals)
+@inline conditionalrate(models::Tuple{}, x::NamedTuple) = 0
 @inline conditionalrate(model::RateModel, val) = condition(model, val) ? rate(model, val) : 0
 
 end # module

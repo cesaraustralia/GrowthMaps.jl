@@ -2,8 +2,10 @@ language: julia
 os:
   - linux
   - osx
+  - windows
 julia:
   - 1.0
+  - 1.2
   - nightly
 matrix:
   allow_failures:
@@ -11,6 +13,11 @@ matrix:
   fast_finish: true
 notifications:
   email: false
+
+script:
+  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
+  - $TESTCMD -e 'using Pkg; Pkg.add(PackageSpec(url="https://github.com/rafaqz/GeoData.jl", rev="master"))'
+  - $TESTCMD -e 'using Pkg; Pkg.build(); Pkg.test(coverage=true)'
 after_success:
   - julia -e 'using Pkg; Pkg.add("Coverage"); using Coverage; Codecov.submit(process_folder())'
 
