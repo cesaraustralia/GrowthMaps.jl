@@ -116,7 +116,7 @@ mapgrowth(model::Tuple, series::AbstractGeoSeries;
     output
 end
 
-reconstructparent(A, constructor) = GeoArray(A; data=constructor(parent(A)))
+reconstructparent(A, constructor) = rebuild(A; data=constructor(parent(A)))
 
 period_startdates(startdate, period, nperiods) = [startdate + p * period for p in 0:nperiods-1]
 

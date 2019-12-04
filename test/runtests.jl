@@ -102,58 +102,59 @@ end
 end
 
 @testset "Integration" begin
-    nperiods = 2
+    nperiods = 4
     period = Month(1)
-    startdate = DateTime(2016)
+    subperiod = Day(1)
+    startdate = DateTime(2016, 1, 3)
     enddate = startdate + period * nperiods
-    subperiod_starts = DateTime.(2016, [1,1,2,2], [1, 16, 1, 16])
+    subperiod_starts = DateTime.(2016, [1,2,3,4], [3, 3, 3, 3])
+    dimz = Lat(10:10), Lon(100:110)
 
-    stack1 = GeoStack(NamedTuple{(:lower, :upper, :temp)}((lowerdata, upperdata, tempdata)))
-    stack2 = GeoStack(NamedTuple{(:lower, :upper, :temp)}((lowerdata, upperdata, tempdata)))
-    stack3 = GeoStack(NamedTuple{(:lower, :upper, :temp)}((lowerdata, upperdata, tempdata)))
-    stack4 = GeoStack(NamedTuple{(:lower, :upper, :temp)}((lowerdata, upperdata, tempdata)))
+    lowerdata = GeoArray.([[1 2], [-100 -100], 
+                           [2 3], [3 4], [-100 -100], 
+                           [4 5], [5 6], 
+                           [6 7], [-100 -100], [-100 -100]], Ref(dimz); name="lower")
+    upperdata = GeoArray.([[1 8], [9 8], 
+                           [9 8], [9 8], [9 8], 
+                           [9 8], [9 8], 
+                           [9 8], [9 8], [9 8]], Ref(dimz); name="upper")
+    tempdata = GeoArray.([[270.0 280.0], [270.0 280.0], 
+                          [270.0 280.0], [270.0 280.0], [270.0 280.0],
+                          [270.0 280.0], [270.0 280.0], 
+                          [270.0 280.0], [270.0 280.0], [270.0 280.0]], Ref(dimz); name="tempdata")
+    stacks = [GeoStack(NamedTuple{(:lower, :upper, :temp)}((lowerdata[i], upperdata[i], tempdata[i]))) for i in 1:length(lowerdata)]
+    parent(copy(stacks)[5][:lower]) === parent(stacks[5][:lower])
+    timedim = (Time([DateTime(2016, 1, 3, 9), 
+                     DateTime(2016, 1, 6, 15),
+                     DateTime(2016, 2, 3, 10), 
+                     DateTime(2016, 2, 3, 14),
+                     DateTime(2016, 2, 18, 10), 
+                     DateTime(2016, 3, 3, 3),
+                     DateTime(2016, 3, 3, 8), 
+                     DateTime(2016, 4, 3, 14),
+                     DateTime(2016, 4, 4, 10), 
+                     DateTime(2016, 4, 16, 14)
+                    ]; grid=AllignedGrid()),)
 
-    dimz = (Time([DateTime(2016, 1, 1, 9), DateTime(2016, 1, 16, 15),
-                  DateTime(2016, 2, 1, 10), DateTime(2016, 2, 16, 14)]; grid=AllignedGrid()),)
-    series = GeoSeries([stack1, stack2, stack3, stack4], dimz)
-    model = growth, lower, upper
-
+    series = GeoSeries(stacks, timedim)
+    key = :lower; threshold = 5K; mortalityrate = -1/K
+    lower = LowerStress(key, threshold, mortalityrate)
+    model = lower
     output = mapgrowth(model, series;
                        startdate=startdate,
-                       nperiods=4,
-                       period=Day(15),
-                       subperiod=Day(1),
+                       nperiods=nperiods,
+                       period=period,
+                       subperiod=subperiod,
                        subperiod_starts=subperiod_starts,
                        constructor=identity)
+
+    @test output[Time(1)] == [-4.0 -3.0]
+    @test output[Time(2)] == [-2.5 -1.5]
+    @test output[Time(At(DateTime(2016, 3, 3)))] == [-0.5 0.0]
+    @test output[Time(At(DateTime(2016, 4, 3)))] == [0.0 0.0]
 
     @test typeof(dims(output)) <: Tuple{Lat,Lon,Time}
     @test length(val(dims(output, Time))) == 4
-    dims(output, Time)
-
-    # TODO test output: fill in zero values with expected values
-    @test_broken output[Time(DateTime(2016, 1, 1))] == [-0 0 -0
-                                                        -0  0  0]
-    @test_broken output[Time(DateTime(2016, 1, 16))] == [-0 -0 -0
-                                                         -0  0  0]
-    @test_broken output[Time(DateTime(2016, 1, 31))] == [-0 -0 -0
-                                                         -0  0  0]
-    @test_broken output[Time(DateTime(2016, 2, 15))] == [-0 -0 -0
-                                                         -0  0  0]
-
-    output = mapgrowth(model, series;
-                       startdate=startdate,
-                       nperiods=2,
-                       period=Month(1),
-                       subperiod=Day(2),
-                       subperiod_starts=subperiod_starts,
-                       constructor=identity)
-
-    @test length(val(dims(output, Time))) == 2
-    # TODO test output: fill in zero values with expected values
-    @test_broken output[Time(DateTime(2016, 1))] == [-0 -0 -0
-                                                     -0  0  0]
-    @test_broken output[Time(DateTime(2016, 2))] == [-0 -0 -0
-                                                     -0  0  0]
 end
 
 # We use wget and unzip to handle files, so skip windows
