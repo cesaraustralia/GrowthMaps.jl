@@ -1,0 +1,50 @@
+x_key,x_value,y_key,y_value,stage,host,source,notes
+Temperature C,10,r_m,1.00E-09,all,Cherry,Tochen2014,
+Temperature C,14,r_m,0.05,all,Cherry,Tochen2014,
+Temperature C,18,r_m,0.13,all,Cherry,Tochen2014,
+Temperature C,22,r_m,0.22,all,Cherry,Tochen2014,
+Temperature C,26,r_m,0.21,all,Cherry,Tochen2014,
+Temperature C,28,r_m,0.02,all,Cherry,Tochen2014,
+Temperature C,30,r_m,1.00E-09,all,Cherry,Tochen2014,
+Temperature C,10,r_m,1.00E-09,all,Blueberry,Tochen2014,
+Temperature C,14,r_m,0.05,all,Blueberry,Tochen2014,
+Temperature C,18,r_m,0.12,all,Blueberry,Tochen2014,
+Temperature C,22,r_m,0.17,all,Blueberry,Tochen2014,
+Temperature C,26,r_m,0.2,all,Blueberry,Tochen2014,
+Temperature C,28,r_m,0.01,all,Blueberry,Tochen2014,
+Temperature C,30,r_m,1.00E-09,all,Blueberry,Tochen2014,
+Temperature C,7,r_m,0.011,all,Agar medium,Rendon2018,"Winter morphs, Diet (P:C) 0:1"
+Temperature C,7,r_m,0.011,all,Agar medium,Rendon2018,"Winter morphs, Diet (P:C) 1:4"
+Temperature C,9,r_m,0.007,all,Agar medium,Rendon2018,"Winter morphs, Diet (P:C) 0:1"
+Temperature C,9,r_m,0.029,all,Agar medium,Rendon2018,"Winter morphs, Diet (P:C) 1:4"
+Temperature C,9,r_m,0.013,all,Agar medium,Rendon2018,"Winter morphs, Diet (P:C) 1:2"
+Temperature C,9,r_m,0,all,Agar medium,Rendon2018,"Winter morphs, Diet (P:C) 1:1"
+Temperature C,12,r_m,0.017,all,Agar medium,Rendon2018,"Winter morphs, Diet (P:C) 0:1"
+Temperature C,12,r_m,0.025,all,Agar medium,Rendon2018,"Winter morphs, Diet (P:C) 1:4"
+Temperature C,12,r_m,0.023,all,Agar medium,Rendon2018,"Winter morphs, Diet (P:C) 1:2"
+Temperature C,12,r_m,0.011,all,Agar medium,Rendon2018,"Winter morphs, Diet (P:C) 1:1"
+Temperature C,14,r_m,0.024,all,Agar medium,Rendon2018,"Winter morphs, Diet (P:C) 0:1"
+Temperature C,14,r_m,0.029,all,Agar medium,Rendon2018,"Winter morphs, Diet (P:C) 1:4"
+Temperature C,14,r_m,0.025,all,Agar medium,Rendon2018,"Winter morphs, Diet (P:C) 1:2"
+Temperature C,14,r_m,0.01,all,Agar medium,Rendon2018,"Winter morphs, Diet (P:C) 1:1"
+Temperature C,17,r_m,0.025,all,Agar medium,Rendon2018,"Winter morphs, Diet (P:C) 0:1"
+Temperature C,17,r_m,0.035,all,Agar medium,Rendon2018,"Winter morphs, Diet (P:C) 1:4"
+Temperature C,17,r_m,0.03,all,Agar medium,Rendon2018,"Winter morphs, Diet (P:C) 1:2"
+Temperature C,17,r_m,0.017,all,Agar medium,Rendon2018,"Winter morphs, Diet (P:C) 1:1"
+Temperature C,9,r_m,0.056,all,Agar medium,Rendon2018,"Summer morphs, Diet (P:C) 0:1"
+Temperature C,9,r_m,0.068,all,Agar medium,Rendon2018,"Summer morphs, Diet (P:C) 1:4"
+Temperature C,9,r_m,0.038,all,Agar medium,Rendon2018,"Summer morphs, Diet (P:C) 1:2"
+Temperature C,9,r_m,0.053,all,Agar medium,Rendon2018,"Summer morphs, Diet (P:C) 1:1"
+Temperature C,14,r_m,0.037,all,Agar medium,Rendon2018,"Summer morphs, Diet (P:C) 0:1"
+Temperature C,14,r_m,0.058,all,Agar medium,Rendon2018,"Summer morphs, Diet (P:C) 1:4"
+Temperature C,14,r_m,0.062,all,Agar medium,Rendon2018,"Summer morphs, Diet (P:C) 1:2"
+Temperature C,14,r_m,0.041,all,Agar medium,Rendon2018,"Summer morphs, Diet (P:C) 1:1"
+Temperature C,17,r_m,0.059,all,Agar medium,Rendon2018,"Summer morphs, Diet (P:C) 0:1"
+Temperature C,17,r_m,0.078,all,Agar medium,Rendon2018,"Summer morphs, Diet (P:C) 1:4"
+Temperature C,17,r_m,0.076,all,Agar medium,Rendon2018,"Summer morphs, Diet (P:C) 1:2"
+Temperature C,17,r_m,0.003,all,Agar medium,Rendon2018,"Summer morphs, Diet (P:C) 1:1"
+Temperature C,20.6,r_m,,all,Blueberry,Tochen2015,RH: 20%
+Temperature C,20.6,r_m,0.09,all,Blueberry,Tochen2015,RH: 33%
+Temperature C,20.6,r_m,0.14,all,Blueberry,Tochen2015,RH: 71%
+Temperature C,20.6,r_m,0.15,all,Blueberry,Tochen2015,RH: 82%
+Temperature C,20.6,r_m,0.17,all,Blueberry,Tochen2015,RH: 68%
