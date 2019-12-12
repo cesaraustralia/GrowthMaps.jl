@@ -1,19 +1,14 @@
-"""
-Passed to an optimiser to facilitate fitting any `RateModel`,
-without boilerplate or methods rewrites.
-"""
-mutable struct ModelWrapper{M<:RateModel}
-    model::M
-end
+
+struct CustomBulma <: InteractBase.WidgetTheme; end
+
+const custom_css = "/home/raf/julia/GrowthMaps/assets/interact.css"
+
+InteractBase.libraries(::CustomBulma) = [InteractBase.libraries(Interact.Bulma())...]
+InteractBase.registertheme!(:custombulma, CustomBulma())
+settheme!(CustomBulma())
 
 """
-Update the model with passed in params, and run [`rate`] over the independent variables.
-"""
-(f::ModelWrapper)(xs, params) =
-    GrowthMaps.conditionalrate.(Ref(reconstruct(f.model, params, Real)), xs)
-
-"""
-    fitlsq(model::RateModel, xs::AbstractArray, ys::AbstractArray)
+    fit(model, xs::AbstractArray, ys::AbstractArray)
 
 Fit a model to data with least squares regression, using `curve_fit` from
 LsqFit.jl. The passed in model should be initialised with sensible defaults,
@@ -35,32 +30,62 @@ fit(model::ModelWrapper, xs::AbstractArray, ys::AbstractArray) = begin
     wrapper.model = fit(wrapper.model, xs, ys)
     wrapper
 end
-fit(model::RateModel, xs::AbstractArray, ys::AbstractArray) = begin
+fit(model, xs::AbstractArray, ys::AbstractArray) = begin
     fit = curve_fit(ModelWrapper(model), xs, ys, [flatten(model, Real)...])
     reconstruct(model, fit.param)
 end
 
-
 """
 Returns the wrapper holding the fitted model
 """
-manualfit!(wrapper::ModelWrapper, xs, ys; throttlelen=0.1, plotrange=270.0K:0.1K:320K) = begin
-    params = Flatten.flatten(val(wrapper), Number)
-    fnames = fieldnameflatten(val(wrapper), Number)
-    bounds = metaflatten(val(wrapper), FieldMetadata.bounds, Number)
-    ranges = buildrange.(bounds, params)
-    parents = parentnameflatten(val(wrapper), Number)
-    descriptions = metaflatten(val(wrapper), FieldMetadata.description, Number)
-    attributes = ((p, n, d) -> Dict(:title => "$p.$n: $d")).(parents, fnames, descriptions)
+manualfit!(wrapper::ModelWrapper, xs, ys, data; kwargs...) =
+    interface!(wrapper, plotfit, (xs, ys, data); kwargs...)
 
-    plotobs = Observable(plotmodel(wrapper.model, xs, ys, params, plotrange))
+plotfit(model, (xs, ys, data)) = begin
+    predictions = combinemodels(model, data)
+    p = plot(first(data), predictions; label="predicted", legend=false)
+    scatter!(p, xs, ys; label="observed")
+    p
+end
+
+"""
+Fit a model to the map
+"""
+mapfit!(wrapper::ModelWrapper, series, mapgrowth_kwargs; occurrance=[],
+        precomputed=nothing, plot_kwargs=(), kwargs...) =
+    interface!(wrapper, plotmap, (series, mapgrowth_kwargs, occurrance, precomputed); kwargs...)
+
+plotmap(model, (series, mapgrowth_kwargs, occurance, precomputed);
+        window=(Band(1),), markercolor=:white, markersize=2.0,
+        size=(1000,400), clims=(-2.0, 0.25), legend=:none, kwargs...) = begin
+    output = mapgrowth(model, series; mapgrowth_kwargs...)
+    output = isnothing(precomputed) ? output : output .+ precomputed
+    p = plot(output[window...]; size=size, clims=clims, legend=legend, kwargs...)
+    s = scatter!(occurance; markercolor=markercolor, markersize=markersize)
+end
+
+interface!(wrapper::ModelWrapper, f, data; use=Number, ignore=Nothing, throttlelen=0.1, kwargs...) = begin
+    plotobs = Observable(f(wrapper.model, data; kwargs...))
+    sliders, slider_obs, slider_groups = build_sliders(wrapper.model, use, ignore, throttlelen)
+    on(slider_obs) do params
+        wrapper.model = Flatten.reconstruct(wrapper.model, params, use, ignore)
+        plotobs[] = f(wrapper.model, data; kwargs...)
+    end
+    vbox(plotobs, vbox(slider_groups...))
+end
+
+
+build_sliders(model, use, ignore, throttlelen) = begin
+    params = Flatten.flatten(model, use, ignore)
+    fnames = fieldnameflatten(model, use, ignore)
+    bounds = metaflatten(model, FieldMetadata.bounds, use, ignore)
+    ranges = buildrange.(bounds, params)
+    parents = parentnameflatten(model, use, ignore)
+    descriptions = metaflatten(model, FieldMetadata.description, use, ignore)
+    attributes = ((p, n, d) -> Dict(:title => "$p.$n: $d")).(parents, fnames, descriptions)
 
     sliders = make_slider.(params, fnames, ranges, attributes)
     slider_obs = map((s...) -> s, throttle.(throttlelen, observe.(sliders))...)
-    on(slider_obs) do params
-        wrapper.model = Flatten.reconstruct(wrapper.model, params, Number)
-        plotobs[] = plotmodel(wrapper.model, xs, ys, params, plotrange)
-    end
 
     group_title = nothing
     slider_groups = []
@@ -76,14 +101,7 @@ manualfit!(wrapper::ModelWrapper, xs, ys; throttlelen=0.1, plotrange=270.0K:0.1K
     end
     push!(slider_groups, dom"h2"(group_items...))
 
-    vbox(vbox(slider_groups...), plotobs)
-end
-
-plotmodel(model, xs, ys, params, plotrange) = begin
-    predictions = map(x -> GrowthMaps.rate(model, x), plotrange)
-    p = plot(plotrange, predictions; label="fitted", legend=false)
-    scatter!(p, xs, ys; label="observed")
-    p
+    sliders, slider_obs, slider_groups
 end
 
 make_slider(val, lab, rng, attr) = slider(rng; label=string(lab), value=val, attributes=attr)
@@ -94,6 +112,5 @@ buildrange(bounds::Tuple, val::T) where T =
 electronfit(app; zoom=1.0) = begin
     ui = app(nothing)
     w = Window(Dict("webPreferences"=>Dict("zoomFactor"=>zoom)));
-    # Blink.AtomShell.@dot w webContents.setZoomFactor($zoom)
     body!(w, ui);
 end

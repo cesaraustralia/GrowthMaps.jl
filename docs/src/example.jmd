@@ -9,27 +9,25 @@ In this example we will calculate the expected population growth rates of
 Spotted Wing Drosophila (SWD) _D. suzukii_, for each month of the year on a 9km grid
 accross North America.
 
-We'll subsample down to using just one day per month so the model runs really
-fast. If you have a GPU you may want to try running more days.
+We'll subsample down to using just one day per month so the model runs really fast.
 
 
-## Load the required packages
+## Load some required packages
 
-These packages take care of loading and plotting data, and handling units and dates.
+These packages take care of loading and plotting data, and handling sci units and dates.
 
 ```julia; results=hidden
-using Revise
-using GrowthMaps, Unitful, Plots, Dates
+using GrowthMaps, Plots, Unitful, Dates
 using Unitful: °C, K, cal, mol
 ```
 
 ## Define model components
 
-First we'll define the growth model using `IntrsinsicGrowth`, based on
+First we'll define the growth model using `SchoolfieldIntrinsicGrowth`, based on
 Schoolfield (1981).
 
-When defining model components, the first parameter is always the key for the
-stack layer, from the list we saw earlier using `keys()`.
+When defining model components, the first parameter is a `:symbol` for the
+required raster layer in the source data.
 
 ```julia; results=hidden
 p = 3e-01
@@ -39,17 +37,16 @@ p = 3e-01
 Thalf_L = 2e2K
 Thalf_H = 3e2K
 T_ref = K(25.0°C)
-growth = SchoolfieldIntrinsicGrowth(:surface_temp, p, ΔH_A, ΔH_L, ΔH_H, Thalf_L, Thalf_H, T_ref);
+growth = Layer(:surface_temp, SchoolfieldIntrinsicGrowth(p, ΔH_A, ΔH_L, ΔH_H, Thalf_L, Thalf_H, T_ref));
 ```
 
-If these are estimated parameters, We can fit the model to a a dataset of growth
-rate and temperature.
-
-First extract our independent and dependent variables (xs
+If these are only estimated parameters, We can fit the model to a a dataset of growth
+rate and temperature. First extract our independent and dependent variables (xs
 and ys) from the example CSV:
+
 ```julia; results=hidden
 using CSV, DataFrames, Tables
-basedir = joinpath(Pkg.dir("GrowthMaps"), "docs")
+basedir = joinpath(dirname(Base.pathof(GrowthMaps)), "../docs")
 mkpath(joinpath(basedir, "build"))
 data = CSV.File(joinpath(basedir, "swd_ecophys_data.csv")) |>
        Tables.select(:x_value, :y_value, :y_key) |> DataFrame
@@ -57,120 +54,111 @@ data = filter(d -> d.y_key == "r_m", data) |> dropmissing
 ```
 
 Then extract the required data colummns, and convert temperature values from
-unitless Celcius value explit Kelvins, using Unitful.jl:
+unitless Celcius to explit Kelvins, using Unitful.jl:
 
 ```julia; results=hidden
-ys = data.y_value
-xs = data.x_value * °C .|> K
+obsrate = data.y_value
+obstemp = data.x_value * °C .|> K
 ```
 
 Now we can fit the model. The `fitrate` function provides an easy way to fit the
-models in GrowthMaps, or your own custom `RateModel`s, using the LsqFit.jl
-package.
+models in GrowthMaps or your own custom `RateModel`s, using the LsqFit.jl
+package:
 
 ```julia; results=hidden
-fittedgrowth = fit(growth, xs, ys)
+fittedgrowth = fit(growth, obstemp, obsrate)
 ```
 
 Now plot the fit against the data:
 
 ```julia; results=hidden
-p = plot(x -> GrowthMaps.rate(fittedgrowth, x), 270.0K:0.1K:310.0K; label="fitted")
-scatter!(p, xs, ys; label="observed ")
+temprange = 270.0K:0.1K:310.0K
+p = plot(x -> GrowthMaps.rate(fittedgrowth, x), temprange; label="fitted")
+scatter!(p, obstemp, obsrate; label="observed ")
 ```
 
-We can also try tweaking the fitting the model in a user interface:
+We can also try tweaking the fitting the model manually in a user interface.
+Model components are immutable (for performance reasons), so we wrap the model
+in a mutable wraper so we can use the results.
+We parametrise the model over the same temperature range that we are plotting,
+using the :surface_temp key that the model requires:
 
 ```julia; results=hidden
 wrapper = ModelWrapper(fittedgrowth)
-manualfit!(wrapper, xs, ys)
+data=(surface_temp=temprange,)
+manualfit!(wrapper, obstemp, obsrate, data)
 ```
 
-Update the fitted model to match our manual fit:
+If you are happy with the result, you we can update extract the manual fit
+to use to generate our growth rate maps:
 
 ```julia; results=hidden
 fittedgrowth = wrapper.model
 ```
 
-Now we will define stress models for cold, heat and wilt stress. Stress models model
-processes that produce negative deathrates in the population, as oposed to rate
-models, whos minimum growth rate is zero.
+Note that `manualfit!` will also work for a tuple of model components
+that use the same source data, like `(growth, heatstress, coldstress)`.
 
-As SWD live on and around plants, we use wilting as an indicater of stress
-induced by lack of moisture.  Stress models have a threshold in K and mortality
-rate per degree K. `LowerStress` models stress below the given threshold, while
-`UpperStress` models stress induced above a threshold.
-
-```julia; results=hidden
-coldthresh = 7.0°C |> K  # Enriquez2017
-coldmort = -log(1.00) * K^-1
-coldstress = LowerStress(:surface_temp, coldthresh, coldmort)
-
-heatthresh = 30.0°C |> K # Kimura2004
-heatmort = -log(1.15) * K^-1
-heatstress = UpperStress(:surface_temp, heatthresh, heatmort)
-
-wiltthresh = 0.5 # default?
-wiltmort = -log(1.1);
-wiltstress = UpperStress(:land_fraction_wilting, wiltthresh, wiltmort);
-```
 
 ## Load spatial data
 
-Now we'll load a few more packages to import spatial data to use witih the model
-
+Now we'll load a few more packages to import spatial rasters to use with the model:
 
 ```julia; results=hidden
-using GeoData, Dates, Pkg, Statistics
-using ArchGDAL, NCDatasets
-using CSV, DataFrames, Tables
-# Load some Unitful.jl units
+using ArchGDAL, NCDatasets, GeoData
 using GeoData: Time
 ```
 
-Download some example SMAP data to use in the model:
+Download and unzip some example SMAP data to use in the model:
 
 ```julia; results=hidden
-dataurl = "https://media.githubusercontent.com/media/cesaraustralia/GrowthMaps.jl/data"
-zipfilename = "SMAP_aggregated27km.zip"
-zipfilepath = joinpath(basedir, zipfilename)
+dataurl = "https://media.githubusercontent.com/media/cesaraustralia/GrowthMaps.jl/data/SMAP_aggregated27km.zip"
+zipfilepath = joinpath(basedir, "SMAP_aggregated27km.zip")
 unzippedfolder = joinpath(basedir, "SMAP_aggregated27km")
-
-isfile(zipfilepath) || download(zipfilename)
+isfile(zipfilepath) || download(dataurl, zipfilepath)
 run(`unzip -o $zipfilepath -d $unzippedfolder`)
-filenames = readdir(unzippedfolder);
 ```
 
-Separate out wilting and surface temp filenames using `filter`:
+Get the paths for to all the wilting and surface temp files using `filter`:
 
 ```julia; results=hidden
-wilting_data = joinpath.(Ref(unzippedfolder), filter(fn -> occursin(r"land_fraction_wilting", fn), filenames))
-surface_temp_data = joinpath.(Ref(unzippedfolder), filter(fn -> occursin(r"surface_temp", fn), filenames))
+filenames = readdir(unzippedfolder);
+wilting_filenames = filter(fn -> occursin(r"land_fraction_wilting", fn), filenames)
+surface_temp_filenames = filter(fn -> occursin(r"surface_temp", fn), filenames)
+wilting_paths = joinpath.(Ref(unzippedfolder), wilting_filenames)
+surface_temp_paths = joinpath.(Ref(unzippedfolder), surface_temp_filenames)
 ```
 
 Get the dates covered in the data from the `surface_temp` files list, using regex:
 
 ```julia; results=hidden
 df = DateFormat("yyyymmddTHHMMSS");
-dates = DateTime.(replace.(surface_temp_data, Ref(r".*_(\d+T\d+).tif" => s"\1")), Ref(df));
+dates = DateTime.(replace.(surface_temp_paths, Ref(r".*_(\d+T\d+).tif" => s"\1")), Ref(df));
 ```
+We know the "land_fraction_wilting" files are for the same dates.
 
-We assument the "land_fraction_wilting" files are for the same dates, and put together
-a series of stacks to load from disk during the simulation.
+Now we have the files and date seies, we can put together
+a series of GeoData.jl stacks to load from disk while generating growth maps
+The beauty of this approach is that we can use a lot of different source file types and
+folder configurations without converting them or running out of RAM.
 
 ```julia; results=hidden
-stacks = [GeoStack((land_fraction_wilting=GDALarray(wilting_data[i]),
-    surface_temp=GDALarray(surface_temp_data[i]))) for i in 1:length(surface_temp_data)];
-startdate=dates[1]
-enddate=dates[end] + Hour(3)
-
+makestack(i) = GDALstack((land_fraction_wilting=wilting_paths[i],
+                       surface_temp=surface_temp_paths[i]))
+stacks = [makestack(i) for i in 1:length(surface_temp_paths)]
+startdate = dates[1]
+enddate = dates[end] + Hour(3)
 timedim = Time(dates; grid=AllignedGrid(;bounds=(startdate, enddate)))
 series = GeoSeries(stacks, (timedim,); window=(Band(1),))
 ```
 
-GeoData.jl has a `SmapSeries()` constructor that will automate this for SMAP HDF5 files,
-downloading the dataset takes too long for an example.
+Note: GeoData.jl has a `SMAPseries()` constructor that will automate this whole
+process for real SMAP HDF5 files, . But downloading the dataset takes too long for an example.
 
+```julia
+# using HDF5
+# series = SMAPseries(folder_path)
+```
 
 We can plot a layer from a file at some date in the series:
 
@@ -188,31 +176,65 @@ the available times over one day:
 
 ## Run a model over the spatial data
 
-First we'll define a simple model that only calculates growth rate.
-
-```julia; results=hidden
-model = fittedgrowth;
-```
+First we'll run a simple model that only calculates growth rate.
 
 And run it:
 
 ```julia; results=hidden
 startdate=DateTime(2016)
-period = Month(1)
-nperiods = 12
+period = Month(6)
+nperiods = 2
 subperiod = Day(1)
-output = mapgrowth(model, series; period=period, nperiods=nperiods, startdate=startdate, subperiod=subperiod);
+
+output = mapgrowth(fittedgrowth, series;
+                   period=period,
+                   nperiods=nperiods,
+                   subperiod=subperiod,
+                   startdate=startdate
+                  );
 ```
 
-The create a plot of the sixth month.
+The plot the results:
 
 ```julia; results=hidden
-output[Time(1)] |> plot
+output[Band(1)] |> plot
 ```
 
-We can see it doesn't really capture realistic population dynamics - we have no
-growth rates below zero! We need to add some stress models.
+We can easily select a single month:
 
+```julia; results=hidden
+output[Time(1), Band(1)] |> plot
+# or by specific date
+# output[Time(At(DateTime(2016,3))), Band(1)] |> plot
+```
+
+But it doesn't really capture realistic population growth. There are no
+growth rates below zero. We need to add some stress models.
+
+Stress models model processes that produce negative deathrates in the
+population, as oposed to rate models, where the minimum growth rate is zero.
+
+Stress models have a threshold in K and mortality
+rate per degree K. `LowerStress` models stress below the given threshold, while
+`UpperStress` models stress induced above a threshold.
+
+We will define stress models for cold, heat and wilt stress.
+As SWD live on and around plants, we use the proportion of plants
+wilting as an indicater of stress induced by lack of moisture.
+
+```julia; results=hidden
+coldthresh = 7.0°C |> K  # Enriquez2017
+coldmort = -log(1.00) * K^-1
+coldstress = Layer(:surface_temp, LowerStress(coldthresh, coldmort))
+
+heatthresh = 30.0°C |> K # Kimura2004
+heatmort = -log(1.15) * K^-1
+heatstress = Layer(:surface_temp, UpperStress(heatthresh, heatmort))
+
+wiltthresh = 0.5 # default?
+wiltmort = -log(1.1);
+wiltstress = Layer(:land_fraction_wilting, UpperStress(wiltthresh, wiltmort));
+```
 To build a more complex model, we can chain components together in a tuple:
 
 ```julia; results=hidden
@@ -222,106 +244,101 @@ model = fittedgrowth, heatstress;
 And again, run and plot them:
 
 ```julia; results=hidden
-output = mapgrowth(model, series; period=period, nperiods=nperiods, subperiod=subperiod, startdate=startdate)
+output = mapgrowth(model, series;
+                   period=period,
+                   nperiods=nperiods,
+                   subperiod=subperiod,
+                   startdate=startdate
+                  )
 output[Time(1)] |> plot
 ```
 
-That looks better. There are negative growth rates in the desert now.
+That looks better. There are negative growth rates in hot regions.
 Now lets define a full model with growth and three stressors:
 
 ```julia; results=hidden
 model = fittedgrowth, coldstress, heatstress, wiltstress
-output = mapgrowth(model, series; period=period, nperiods=nperiods, subperiod=subperiod, startdate=startdate)
+output = mapgrowth(model, series;
+                   period=period,
+                   nperiods=nperiods,
+                   subperiod=subperiod,
+                   startdate=startdate
+                  )
 output[Time(1)] |> plot
 savefig(joinpath(basedir, "build/assets/growthrates.png"));
 ```
 
 ![Growth Rates](../assets/growthrates.png)
 
-Save the output as a NetCDF file, as tif can't handle the time dimension.
+Save the output as a NetCDF file, as tif files can't handle the extra
+time dimension.
 
 ```julia; results=hidden
-GeoData.save(NCDarray, "growthrates.ncd", output)
+write("growthrates.ncd", NCDarray, output)
+```
+
+We can load it again with:
+
+```julia; results=hidden
+ncarray = NCDarray("growthrates.ncd")
+plot(ncarray[Time(1)])
 ```
 
 ## Compare with observation data
 
-Plot again, setting the x and y lims (do automatically in GeoData.jl?)
+To compare out simulation with observations data, we'll load them
+from a CSV file, and scatter them on the map:
 
 ```julia; results=hiddeats
-array = output[Time(1)]
-p = plot(array; xlim=bounds(dims(array, Lon)), ylim=bounds(dims(array, Lat)))
-```
-
-Load observations from a CSV file, and scatter them on the map. The
-`zip` function joins Lat and Lon columns into point tuples, which can
-be plotting using Plots.jl.
-
-```julia; results=hiddeats
-using CSV
 csvurl = "https://raw.githubusercontent.com/cesaraustralia/GrowthMaps.jl/data/"
 csvfilename = joinpath(basedir, "Oersted_occurrence.csv")
 isfile(csvfilename) || download(joinpath(csvurl, csvfilename))
 obs = CSV.File(csvfilename)
-scatter!(p, collect(zip(obs.Longitude, obs.Latitude));
-         markersize=4.0, markercolor=:white, markershape=:circle, label="obs",
-         xlim=bounds(dims(array, Lon)), ylim=bounds(dims(array, Lat))
-         )
+occurance = collect(zip(obs.Longitude, obs.Latitude))
+p = output[Time(5)] |> plot
+scatter!(p, occurance; markersize=2.0, markercolor=:white, markershape=:circle, label="obs")
 ```
 
+# Parametrising models using interactive maps
 
-# Writing your own models.
+If you need to adjust the model based on the distribution, this
+can be done live in the interface, as with the manual fit.
 
-Here we analise how the `SchoolfieldIntrinsicGrowth` model works, in order to add new
-formulations of your own.
+Parametrising maps on large datasets is processor intensive, which inhibits
+interactive fedback. To reduce processing, we can aggregate the spatial data to
+a more manageable size:
 
-First we need to define a julia struct to hold our parameters and choose the rate method
-to dispatch on in the simulation.
-
-It should inherit from `GrowthModel` or `StressModel`, and must have a `K` type parameter
-that will hold the layer key symbol. Then use one type parameter for each type parameter
-(here `P`, `HA` etc) these allow different float or unit types to share the same code with
-high performance.  You can use unicode special characters for parameter names.
-The `@flattenable` macro allows removing fields from the struct when fitting the model
-parameters in `fit`, which uses Flatten.jl. Here, the `T_ref` feild should not be optimised.
-
-```julia
-@flattenable struct SchoolfieldIntrinsicGrowth{K,P,HA,HL,HH,TL,TH,TR,R} <: GrowthModel{K}
-    p::P         | true
-    ΔH_A::HA     | true
-    ΔH_L::HL     | true
-    ΔH_H::HH     | true
-    T_halfL::TL  | true
-    T_halfH::TH  | true
-    T_ref::TR    | false
-    R::R         | false
-end
+```julia; results=hidden
+agg = 6
+aggseries = map(x -> GeoData.aggregate(x, Center(), (Lon(agg), Lat(agg), Band(1))), series)
+aggseries[Time(1)][:land_fraction_wilting] |> plot
 ```
 
-Then we can define a method of `rate` that will be run for each cell in the grid.
-The `@inline` macro ensures that the code can be complied together with the other
-models into a single broadcast operation, which in most cases improves performance.
-Fields of the `SchoolfieldIntrinsicGrowth` are used as parameters in the equation.
-Notice we add a version that multiplies the array value by `oneunit` of the `T_ref`
-variable to allow using Unitful.jl units (K), for when they are not specified them
-in the array:
+You can experiment with the `agg` size to compromise between quality and render time.
 
-```julia
-@inline rate(m::SchoolfieldIntrinsicGrowth1, x::Real) =
-    rate(m::SchoolfieldIntrinsicGrowth1, x * u"K")
-@inline rate(m::SchoolfieldIntrinsicGrowth2, x::Quantity) = begin
-    x *= oneunit(m.T_ref)
-    m.p * x/m.T_ref * exp(m.ΔH_A/m.R * (1/m.T_ref - 1/x)) /
-        (1 + exp(m.ΔH_L/m.R * (1/m.T_halfL - 1/x)) + exp(m.ΔH_H/m.R * (1/m.T_halfH - 1/x)))
-end
+As the combination of model is additive, we can prebuild parts of the model
+we don't want to fit manually, which simplifies the interfaces and helps performance:
+
+```julia; results=hidden
+kwargs = (; period=period, nperiods=nperiods, subperiod=subperiod, startdate=startdate)
+precomputed = mapgrowth((fittedgrowth, wiltstress), aggseries; kwargs...)
 ```
 
-We can also define a `condition` method that will return a boolean to
-filter out values where no rate
-will be calculated and added to the overall growth rate.
-The default is simply to return `true` and run for all cells.
-This `condition` method is fore the `UpperStress` model:
+Then fit the other components:
 
-```julia
-@inline condition(m::UpperStress, x) = x * oneunit(m.threshold) > m.threshold
+```julia; results=hidden
+wrapper = ModelWrapper(coldstress, heatstress)
+mapfit!(wrapper, aggseries, kwargs;
+        occurrance=occurance,
+        precomputed=precomputed,
+        throttlelen=0.2)
 ```
+
+And get the updated model components from the wrapper:
+
+```julia; results=hidden
+coldstress, heatstress = wrapper.model
+```
+
+With these tools you should be able to put together decent population growth
+datasets.

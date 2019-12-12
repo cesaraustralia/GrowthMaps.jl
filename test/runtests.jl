@@ -1,7 +1,8 @@
 using GrowthMaps, GeoData, HDF5, Dates, Unitful, Test
 using GeoData: Time, rebuild
 using Unitful: °C, K, hr, d, mol, cal
-using GrowthMaps: rate, condition, conditionalrate, period_startdates, subset_startdates
+using GrowthMaps: rate, condition, conditionalrate, combinemodels, 
+      period_startdates, subset_startdates
 
 dimz = Lat(10:20), Lon(100:130)
 
@@ -17,23 +18,21 @@ lowerunitful = lowerdata * K
 upperunitful = upperdata * K
 tempunitful = tempdata * K
 
-key = :lower
 threshold = 5K
 mortalityrate = -1/K
-lower = LowerStress(key, threshold, mortalityrate)
+lower = Layer(:lower, LowerStress(threshold, mortalityrate))
 
 @testset "Lower stress" begin
     @test keys(lower) == :lower
-    @test condition.(Ref(lower), lowerdata) == [true true true
-                                                true false  false]
+    @test condition.(Ref(lower), lowerdata) == [true true  true
+                                                true false false]
     @test conditionalrate.(Ref(lower), lowerdata) == [-4 -3 -2
                                                       -1  0  0]
 end
 
-key = :upper
 threshold = 6K
 mortalityrate = -2/K
-upper = UpperStress(key, threshold, mortalityrate)
+upper = Layer(:upper, UpperStress(threshold, mortalityrate))
 
 @testset "Upper stress" begin
     @test keys(upper) == :upper
@@ -43,7 +42,6 @@ upper = UpperStress(key, threshold, mortalityrate)
                                                        0  0  0]
 end
 
-key = :temp
 p = 0.3
 ΔH_A = 2e4cal * mol^-1
 ΔH_L = -1e5cal * mol^-1
@@ -51,7 +49,7 @@ p = 0.3
 T_halfL = 250.0K
 T_halfH = 300.0K
 T_ref = K(25.0°C)
-growth = SchoolfieldIntrinsicGrowth(key, p, ΔH_A, ΔH_L, ΔH_H, T_halfL, T_halfH, T_ref)
+growth = Layer(:temp, SchoolfieldIntrinsicGrowth(p, ΔH_A, ΔH_L, ΔH_H, T_halfL, T_halfH, T_ref))
 
 @testset "Schoolfield Intrinsic growth" begin
     @test keys(growth) == :temp
@@ -66,9 +64,9 @@ end
 
 @testset "Combined models" begin
     stack = GeoStack(NamedTuple{(:lower, :upper, :temp)}((lowerdata, upperdata, tempdata)))
-    @test conditionalrate((lower, upper), stack) == [-10 -7 -4
-                                                      -1  0  0]
-    conditionalrate((growth, lower, upper), stack)
+    @test combinemodels((lower, upper), stack) == [-10 -7 -4
+                                                   -1  0  0]
+    combinemodels((growth, lower, upper), stack)
 end
 
 @testset "selection of dates for periods and subperiods" begin
@@ -137,16 +135,15 @@ end
                     ]; grid=AllignedGrid()),)
 
     series = GeoSeries(stacks, timedim)
-    key = :lower; threshold = 5K; mortalityrate = -1/K
-    lower = LowerStress(key, threshold, mortalityrate)
+    threshold = 5K; mortalityrate = -1/K
+    lower = Layer(:lower, LowerStress(threshold, mortalityrate))
     model = lower
     output = mapgrowth(model, series;
                        startdate=startdate,
                        nperiods=nperiods,
                        period=period,
                        subperiod=subperiod,
-                       subperiod_starts=subperiod_starts,
-                       constructor=identity)
+                       subperiod_starts=subperiod_starts)
 
     @test output[Time(1)] == [-4.0 -3.0]
     @test output[Time(2)] == [-2.5 -1.5]

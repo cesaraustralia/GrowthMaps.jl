@@ -1,4 +1,31 @@
 """
+Passed to an optimiser to facilitate fitting any `RateModel`,
+without boilerplate or methods rewrites.
+"""
+mutable struct ModelWrapper{M}
+    model::M
+end
+ModelWrapper(m::Tuple) = ModelWrapper{typeof(m)}(m)
+ModelWrapper(m...) = ModelWrapper{typeof(m)}(m)
+
+struct Layer{K,M}
+    model::M
+end
+Layer{K}(x) where K = Layer{K,typeof(x)}(x)
+Layer(key::Symbol, x) = Layer{key,typeof(x)}(x)
+
+ConstructionBase.constructorof(::Type{<:Layer{K}}) where K = Layer{K}
+
+Base.keys(model::Layer{K}) where K = K
+Base.keys(models::Tuple{Vararg{<:Layer}}) = map(keys, models)
+
+"""
+Update the model with passed in params, and run [`rate`] over the independent variables.
+"""
+(f::ModelWrapper)(xs, params) =
+    GrowthMaps.conditionalrate.(Ref(reconstruct(f.model, params, Real)), xs)
+
+"""
 A `RateModel` conatains the parameters to calculate the contribution of a
 growth or stress factor to the overall population growth rate.
 
@@ -6,16 +33,7 @@ A [`rate`](@ref) method corresponding to the model type must be defined specifyi
 the formulation, and optionally a [`condition`](@ref) method to e.g. ignore data below
 thresholds.
 """
-abstract type RateModel{K} end
-
-# Custom constructorof as RateModels have key as a type parameter
-@generated function ConstructionBase.constructorof(::Type{T}) where T<:RateModel{K} where K
-    getfield(parentmodule(T), nameof(T)){K}
-end
-
-# Allow passing key as a normal parameter
-(::Type{T})(key::Symbol, args...) where T <: RateModel = T{key, typeof.(args)...}(args...)
-(::Type{T})(args...) where T <: RateModel = T{typeof.(args)...}(args...)
+abstract type RateModel end
 
 """
 The intrinsic rate of population growth is the exponential growth rate of a
@@ -31,7 +49,7 @@ and high temperatures (Haghani et al. 2006).
 This can be described using a variety of non-linear functions,
 see [`SchoolfieldIntrinsicGrowth`](@ref) for an implementation.
 """
-abstract type GrowthModel{K} <: RateModel{K} end
+abstract type GrowthModel <: RateModel end
 
 """
 Extreme stressor mortality can be assumed to occur once an environmental
@@ -62,10 +80,7 @@ Upper and lower stresses may be in relation to any environmental variable,
 specied with the `key` parameter, that will use the data at that key in `GeoStack`
 for the current timestep.
 """
-abstract type StressModel{K} <: RateModel{K} end
-
-Base.keys(model::RateModel{K}) where K = K
-Base.keys(models::Tuple{Vararg{<:RateModel}}) = tuple(keys.(models)...)
+abstract type StressModel <: RateModel end
 
 """
     rate(m, x)
@@ -76,6 +91,7 @@ Calculates the rate modifyer for a single cell. Must be defined for all models.
 specified by the models `key()` method, using corresponding to its `key` field.
 """
 function rate end
+rate(l::Layer, x) = rate(l.model, x)
 
 """
     condition(m, x)
@@ -85,6 +101,7 @@ the environmental variable of value x. Returns a boolean. If not defined, defaul
 to `true` for all values.
 """
 function condition end
+condition(l::Layer, x) = condition(l.model, x)
 condition(m, x) = true
 
 
@@ -96,9 +113,9 @@ specified `mortalityrate` for some environmental layer `key`.
 
 Independent variables must be in the same units as
 """
-struct LowerStress{K,T,M} <: StressModel{K}
-    threshold::T
-    mortalityrate::M
+@bounds @flattenable struct LowerStress{T,M} <: StressModel
+    threshold::T     | true  | (250, 350)
+    mortalityrate::M | true  | (-0.5, 0.0)
 end
 # TODO set units in the model, this is a temporary hack
 @inline condition(m::LowerStress, x) = x * oneunit(m.threshold) < m.threshold
@@ -112,9 +129,9 @@ end
 A [`StressMortality`](@ref) model where stress occurs above a `threshold` at the
 specified `mortalityrate`, for some environmental layer `key`.
 """
-struct UpperStress{K,T,M} <: StressModel{K}
-    threshold::T
-    mortalityrate::M
+@bounds @flattenable struct UpperStress{T,M} <: StressModel
+    threshold::T     | true  | (250, 350)
+    mortalityrate::M | true  | (-0.5, 0.0)
 end
 @inline condition(m::UpperStress, x) = x * oneunit(m.threshold) > m.threshold
 @inline condition(m::UpperStress, x::Quantity) = x > m.threshold
@@ -122,16 +139,13 @@ end
 @inline rate(m::UpperStress, x::Quantity) = (x - m.threshold) * m.mortalityrate
 
 """
-SchoolfieldIntrinsicGrowth{K}(p, ΔH_A, ΔH_L, ΔH_H, Thalf_L, Thalf_H, T_ref, R)
+SchoolfieldIntrinsicGrowth(p, ΔH_A, ΔH_L, ΔH_H, Thalf_L, Thalf_H, T_ref, R)
 
 A [`GrowthModel`](@ref) where the temperature response of positive growth rate is
 modelled following Schoolfield et al. 1981, _"Non-linear regression of biological
 temperature-dependent rate models base on absolute reaction-rate theory"_.
 
 The value of the specified data layer _must_ be in Kelvin.
-
-# Type parameter
-- `K::Symbol`
 
 ## Arguments
 - `p::P`: growth rate at reference temperature `T_ref`
@@ -145,7 +159,7 @@ The value of the specified data layer _must_ be in Kelvin.
 This can be parameterised from empirical data, (see Zhang et al. 2000; Haghani
 et al. 2006; Chien and Chang 2007) and non-linear least squares regression.
 """
-@bounds @flattenable struct SchoolfieldIntrinsicGrowth{K,P,HA,HL,HH,TL,TH,TR} <: GrowthModel{K}
+@bounds @flattenable struct SchoolfieldIntrinsicGrowth{P,HA,HL,HH,TL,TH,TR} <: GrowthModel
     p::P         | true  | (0.0, 1.0)
     ΔH_A::HA     | true  | (0.0u"cal/mol", 1e6u"cal/mol")
     ΔH_L::HL     | true  | (-1e6u"cal/mol", 0.0u"cal/mol")

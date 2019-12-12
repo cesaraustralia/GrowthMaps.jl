@@ -36,19 +36,18 @@ p = 3.377850e-01
 Thalf_L = 2.359187e+02K
 Thalf_H = 2.991132e+02K
 T_ref = K(25.0°C)
-growth = SchoolfieldIntrinsicGrowth(:surface_temp, p, ΔH_A, ΔH_L, 
-                     ΔH_H, Thalf_L, Thalf_H, T_ref);
+growth = Layer(:surface_temp, SchoolfieldIntrinsicGrowth(p, ΔH_A, ΔH_L, ΔH_H, Thalf_L, Thalf_H, T_ref));
 coldthresh = 7.0°C |> K  # Enriquez2017
 coldmort = -log(1.00) * K^-1
-coldstress = LowerStress(:surface_temp, coldthresh, coldmort)
+coldstress = Layer(:surface_temp, LowerStress(coldthresh, coldmort))
 
 heatthresh = 30.0°C |> K # Kimura2004
 heatmort = -log(1.15) * K^-1
-heatstress = UpperStress(:surface_temp, heatthresh, heatmort)
+heatstress = Layer(:surface_temp, UpperStress(heatthresh, heatmort))
 
 wiltthresh = 0.5 # default?
 wiltmort = -log(1.1);
-wiltstress = UpperStress(:land_fraction_wilting, wiltthresh, wiltmort);
+wiltstress = Layer(:land_fraction_wilting, UpperStress(wiltthresh, wiltmort));
 
 model = growth, coldstress, heatstress, wiltstress
 
@@ -59,3 +58,4 @@ output = mapgrowth(model, series;
                    nperiods=nperiods,
                    period=period,
                    subperiod=subperiod)
+
