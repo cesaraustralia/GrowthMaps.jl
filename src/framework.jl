@@ -35,7 +35,7 @@ mapgrowth(model::Tuple, series::AbstractGeoSeries;
     required_keys = Tuple(union(keys(model)))
     stackbuffer = GeoStack(first(series); keys=required_keys)
     A = first(values(stackbuffer));
-    mask = map(x -> x ? Float32(x) : NaN32, GeoData.boolmask(A))
+    mask = map(x -> x ? eltype(A)(x) : eltype(A)(NaN), GeoData.boolmask(A))
     # Create an init array without refdims or a name
     init = GeoArray(A; data=zero(parent(A)), name="growthrate", refdims=())
 
@@ -44,9 +44,9 @@ mapgrowth(model::Tuple, series::AbstractGeoSeries;
     # Setup output vector
     # Make a 3 dimensional GeoArray for output, adding the time dimension
     # to init (there should be a function for this in DimensionalData.jl - growdim?
-    output = rebuild(init; data=zeros(size(init)..., nperiods),
-                     dims=(dims(init)..., Time(periodstarts; grid=AllignedGrid(; bounds=(startdate, enddate)))),
-                     missingval=NaN)
+    output = GeoArray(init; data=zeros(size(init)..., nperiods),
+                      dims=(dims(init)..., Time(periodstarts)), 
+                      missingval=eltype(init)(NaN))
 
     println("Running for $(1:nperiods)")
     for p in 1:nperiods
