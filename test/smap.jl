@@ -27,7 +27,7 @@ A = GDALarray(temp[1])
 stacks = [GDALstack((land_fraction_wilting=wilting[i], surface_temp=temp[i]); 
                     dims=dims(A)) for i in 1:length(temp)]
 stacks[1][:surface_temp]
-series = GeoSeries(stacks, (Time(dates; grid=AllignedGrid(;bounds=(startdate, enddate))),));
+series = GeoSeries(stacks, (Time(dates; grid=RegularGrid(; span=Hour(3))),));
 
 p = 3.377850e-01
 ΔH_A = 3.574560e+04cal/mol
