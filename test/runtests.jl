@@ -153,10 +153,3 @@ end
     @test typeof(dims(output)) <: Tuple{Lat,Lon,Time}
     @test length(val(dims(output, Time))) == 4
 end
-
-# We use wget and unzip to handle files, so skip windows
-if !Sys.iswindows()
-    @testset "SMAP" begin
-        include("smap.jl")
-    end
-end
