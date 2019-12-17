@@ -61,7 +61,10 @@ plotmap(model, (series, mapgrowth_kwargs, occurance, precomputed);
     output = mapgrowth(model, series; mapgrowth_kwargs...)
     output = isnothing(precomputed) ? output : output .+ precomputed
     p = plot(output[window...]; size=size, clims=clims, legend=legend, kwargs...)
-    s = scatter!(occurance; markercolor=markercolor, markersize=markersize)
+    for t in 1:length(dims(output, Time))
+        scatter!(occurance; subplot=t, markercolor=markercolor, markersize=markersize)
+    end
+    p
 end
 
 interface!(wrapper::ModelWrapper, f, data; use=Number, ignore=Nothing, throttlelen=0.1, kwargs...) = begin
