@@ -5,7 +5,7 @@ example = "src/example.jmd"
 mdlines = readlines(example)
 md = join(mdlines[findall(x -> x=="---", mdlines)[2]+1:end], "\n")
 # Format code blocks for jldoctest 
-md = replace(md, Regex("```julia.*") => "```jldoctest")
+md = replace(md, Regex("```julia.*") => "```julia")
 write("src/example.md", md)
 
 # Generate HTML docs
@@ -18,10 +18,6 @@ makedocs(
     ]
 )
 
-deploydocs(
-    repo = "github.com/cesaraustralia/GrowthMaps.jl.git",
-)
-
 pdfdir = "build/pdf" 
 notebookdir = "build/notebook"
 mkpath.((pdfdir, notebookdir))
@@ -31,3 +27,7 @@ weave(example, out_path=pdfdir, doctype="pandoc2pdf")
 
 # Generate examples notebook
 convert_doc(example, joinpath(notebookdir, "example.ipynb"))
+
+deploydocs(
+    repo = "github.com/cesaraustralia/GrowthMaps.jl.git",
+)
