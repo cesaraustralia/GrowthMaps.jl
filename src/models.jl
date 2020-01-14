@@ -104,39 +104,64 @@ function condition end
 condition(l::Layer, x) = condition(l.model, x)
 condition(m, x) = true
 
+abstract type AbstractLowerStress <: StressModel end
+
+# TODO set units in the model, this is a temporary hack
+@inline condition(m::AbstractLowerStress, x) = x * oneunit(m.threshold) < m.threshold
+@inline condition(m::AbstractLowerStress, x::Quantity) = x < m.threshold
+@inline rate(m::AbstractLowerStress, x) = (m.threshold - x * oneunit(m.threshold)) * m.mortalityrate
+@inline rate(m::AbstractLowerStress, x::Quantity) = (m.threshold - x) * m.mortalityrate
 
 """
     LowerStress(key::Symbol, threshold, mortalityrate)
 
-A [`StressMortality`](@ref) model where stress occurs below a `threshold` at a
+A [`StressModel`](@ref) where stress occurs below a `threshold` at a
 specified `mortalityrate` for some environmental layer `key`.
 
 Independent variables must be in the same units as
 """
-@bounds @flattenable struct LowerStress{T,M} <: StressModel
-    threshold::T     | true  | (250, 350)
-    mortalityrate::M | true  | (-0.5, 0.0)
+@bounds struct LowerStress{T,M} <: AbstractLowerStress
+    threshold::T     | (250, 350)
+    mortalityrate::M | (-0.5, 0.0)
 end
-# TODO set units in the model, this is a temporary hack
-@inline condition(m::LowerStress, x) = x * oneunit(m.threshold) < m.threshold
-@inline condition(m::LowerStress, x::Quantity) = x < m.threshold
-@inline rate(m::LowerStress, x) = (m.threshold - x * oneunit(m.threshold)) * m.mortalityrate
-@inline rate(m::LowerStress, x::Quantity) = (m.threshold - x) * m.mortalityrate
+
+@bounds struct ColdStress{T,M} <: AbstractLowerStress
+    threshold::T     | (250, 350)
+    mortalityrate::M | (-0.5, 0.0)
+end
+
+@bounds struct MoistureStress{T,M} <: AbstractLowerStress
+    threshold::T     | (0.0, 1.0)
+    mortalityrate::M | (-0.5, 0.0)
+end
+
+abstract type AbstractUpperStress <: StressModel end
+
+@inline condition(m::AbstractUpperStress, x) = x * oneunit(m.threshold) > m.threshold
+@inline condition(m::AbstractUpperStress, x::Quantity) = x > m.threshold
+@inline rate(m::AbstractUpperStress, x) = (x * oneunit(m.threshold) - m.threshold) * m.mortalityrate
+@inline rate(m::AbstractUpperStress, x::Quantity) = (x - m.threshold) * m.mortalityrate
 
 """
     UpperStress(key::Symbol, threshold, mortalityrate)
 
-A [`StressMortality`](@ref) model where stress occurs above a `threshold` at the
+A [`StressModel`](@ref) where stress occurs above a `threshold` at the
 specified `mortalityrate`, for some environmental layer `key`.
 """
-@bounds @flattenable struct UpperStress{T,M} <: StressModel
-    threshold::T     | true  | (250, 350)
-    mortalityrate::M | true  | (-0.5, 0.0)
+@bounds struct UpperStress{T,M} <: AbstractUpperStress
+    threshold::T     | (250, 350)
+    mortalityrate::M | (-0.5, 0.0)
 end
-@inline condition(m::UpperStress, x) = x * oneunit(m.threshold) > m.threshold
-@inline condition(m::UpperStress, x::Quantity) = x > m.threshold
-@inline rate(m::UpperStress, x) = (x * oneunit(m.threshold) - m.threshold) * m.mortalityrate
-@inline rate(m::UpperStress, x::Quantity) = (x - m.threshold) * m.mortalityrate
+
+@bounds struct HeatStress{T,M} <: AbstractUpperStress
+    threshold::T     | (250, 350)
+    mortalityrate::M | (-0.5, 0.0)
+end
+
+@bounds struct WiltStress{T,M} <: AbstractUpperStress
+    threshold::T     | (0.0, 1.0)
+    mortalityrate::M | (-0.5, 0.0)
+end
 
 """
 SchoolfieldIntrinsicGrowth(p, ΔH_A, ΔH_L, ΔH_H, Thalf_L, Thalf_H, T_ref, R)
@@ -163,8 +188,8 @@ et al. 2006; Chien and Chang 2007) and non-linear least squares regression.
     p::P         | true  | (0.0, 1.0)
     ΔH_A::HA     | true  | (0.0u"cal/mol", 1e6u"cal/mol")
     ΔH_L::HL     | true  | (-1e6u"cal/mol", 0.0u"cal/mol")
-    ΔH_H::HH     | true  | (0.0u"cal/mol", 1e6u"cal/mol")
     T_halfL::TL  | true  | (150.0K, 400K)
+    ΔH_H::HH     | true  | (0.0u"cal/mol", 1e6u"cal/mol")
     T_halfH::TH  | true  | (150.0K, 400K)
     T_ref::TR    | false | _
 end

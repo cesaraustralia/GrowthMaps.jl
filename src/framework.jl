@@ -45,7 +45,7 @@ mapgrowth(model::Tuple, series::AbstractGeoSeries;
     # Make a 3 dimensional GeoArray for output, adding the time dimension
     # to init (there should be a function for this in DimensionalData.jl - growdim?
     output = GeoArray(init; data=zeros(size(init)..., nperiods),
-                      dims=(dims(init)..., Time(periodstarts)), 
+                      dims=(dims(init)..., Time(periodstarts; grid=RegularGrid(; step=period))), 
                       missingval=eltype(init)(NaN))
 
     println("Running for $(1:nperiods)")

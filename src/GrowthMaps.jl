@@ -25,7 +25,8 @@ export RateModel
 
 export GrowthModel, SchoolfieldIntrinsicGrowth
 
-export StressModel, LowerStress, UpperStress
+export StressModel, LowerStress, ColdStress, WiltStress,
+       UpperStress, HeatStress, MoistureStress
 
 export Layer, ModelWrapper
 

@@ -51,25 +51,24 @@ end
 """
 Fit a model to the map
 """
-mapfit!(wrapper::ModelWrapper, series, mapgrowth_kwargs; occurrance=[],
-        precomputed=nothing, plot_kwargs=(), kwargs...) =
-    interface!(wrapper, plotmap, (series, mapgrowth_kwargs, occurrance, precomputed); kwargs...)
+mapfit!(wrapper::ModelWrapper, series, modelkwargs; occurrance=[], precomputed=nothing, kwargs...) =
+    interface!(wrapper, plotmap, (series, modelkwargs, occurrance, precomputed); kwargs...)
 
-plotmap(model, (series, mapgrowth_kwargs, occurance, precomputed);
-        window=(Band(1),), markercolor=:white, markersize=2.0,
-        size=(1000,400), clims=(-2.0, 0.25), legend=:none, kwargs...) = begin
-    output = mapgrowth(model, series; mapgrowth_kwargs...)
+plotmap(model, (series, modelkwargs, occurance, precomputed);
+        window=(Band(1),), levels=10, markercolor=:white, markersize=2.0,
+        size=(1000,400), clims=(-2.0, 0.25), mapkwargs=(), scatterkwargs...) = begin
+    output = mapgrowth(model, series; modelkwargs...)
     output = isnothing(precomputed) ? output : output .+ precomputed
-    p = plot(output[window...]; size=size, clims=clims, legend=legend, kwargs...)
+    p = plot(output[window...]; levels=levels, size=size, clims=clims, mapkwargs...)
     for t in 1:length(dims(output, Time))
-        scatter!(occurance; subplot=t, markercolor=markercolor, markersize=markersize)
+        scatter!(occurance; subplot=t, markercolor=markercolor, markersize=markersize, scatterkwargs...)
     end
     p
 end
 
-interface!(wrapper::ModelWrapper, f, data; use=Number, ignore=Nothing, throttlelen=0.1, kwargs...) = begin
+interface!(wrapper::ModelWrapper, f, data; use=Number, ignore=Nothing, throttle=0.1, kwargs...) = begin
     plotobs = Observable(f(wrapper.model, data; kwargs...))
-    sliders, slider_obs, slider_groups = build_sliders(wrapper.model, use, ignore, throttlelen)
+    sliders, slider_obs, slider_groups = build_sliders(wrapper.model, use, ignore, throttle)
     on(slider_obs) do params
         wrapper.model = Flatten.reconstruct(wrapper.model, params, use, ignore)
         plotobs[] = f(wrapper.model, data; kwargs...)
@@ -78,7 +77,7 @@ interface!(wrapper::ModelWrapper, f, data; use=Number, ignore=Nothing, throttlel
 end
 
 
-build_sliders(model, use, ignore, throttlelen) = begin
+build_sliders(model, use, ignore, _throttle) = begin
     params = Flatten.flatten(model, use, ignore)
     fnames = fieldnameflatten(model, use, ignore)
     bounds = metaflatten(model, FieldMetadata.bounds, use, ignore)
@@ -88,7 +87,7 @@ build_sliders(model, use, ignore, throttlelen) = begin
     attributes = ((p, n, d) -> Dict(:title => "$p.$n: $d")).(parents, fnames, descriptions)
 
     sliders = make_slider.(params, fnames, ranges, attributes)
-    slider_obs = map((s...) -> s, throttle.(throttlelen, observe.(sliders))...)
+    slider_obs = map((s...) -> s, throttle.(_throttle, observe.(sliders))...)
 
     group_title = nothing
     slider_groups = []
