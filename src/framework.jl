@@ -22,7 +22,7 @@ dimension with a length of `nperiods`.
 """
 mapgrowth(model, series; kwargs...) =
     mapgrowth((model,), series; kwargs...)
-mapgrowth(model::ModelWrapper, series; kwargs...) =
+mapgrowth(wrapper::ModelWrapper, series; kwargs...) =
     mapgrowth(wrapper.model, series; kwargs...)
 mapgrowth(model::Tuple, series::AbstractGeoSeries;
           nperiods=1,
@@ -45,7 +45,7 @@ mapgrowth(model::Tuple, series::AbstractGeoSeries;
     # Make a 3 dimensional GeoArray for output, adding the time dimension
     # to init (there should be a function for this in DimensionalData.jl - growdim?
     output = GeoArray(init; data=zeros(size(init)..., nperiods),
-                      dims=(dims(init)..., Time(periodstarts; grid=RegularGrid(; step=period))), 
+                      dims=(dims(init)..., Time(periodstarts; grid=RegularGrid(; step=period))),
                       missingval=eltype(init)(NaN))
 
     println("Running for $(1:nperiods)")
