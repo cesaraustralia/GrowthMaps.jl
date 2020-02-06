@@ -16,9 +16,9 @@ version = "0.3.2"
 
 [[ArrayInterface]]
 deps = ["LinearAlgebra", "Requires", "SparseArrays"]
-git-tree-sha1 = "656fd4bcdf204ea96945d9bc1068c0056013438a"
+git-tree-sha1 = "4f1109cf20b2a31b5196f346bba07b2c61587442"
 uuid = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
-version = "2.3.1"
+version = "2.4.1"
 
 [[AssetRegistry]]
 deps = ["Distributed", "JSON", "Pidfile", "SHA", "Test"]
@@ -171,9 +171,9 @@ uuid = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 
 [[Distributions]]
 deps = ["FillArrays", "LinearAlgebra", "PDMats", "Printf", "QuadGK", "Random", "SpecialFunctions", "Statistics", "StatsBase", "StatsFuns"]
-git-tree-sha1 = "71a3f1ae1fca9ed876edfbc2079d7b7c27e2e3d5"
+git-tree-sha1 = "6b19601c0e98de3a8964ed33ad73e130c7165b1d"
 uuid = "31c24e10-a181-5473-b8eb-7969acd0382f"
-version = "0.22.3"
+version = "0.22.4"
 
 [[DocStringExtensions]]
 deps = ["LibGit2", "Markdown", "Pkg", "Test"]
@@ -183,9 +183,9 @@ version = "0.8.1"
 
 [[Documenter]]
 deps = ["Base64", "Dates", "DocStringExtensions", "InteractiveUtils", "JSON", "LibGit2", "Logging", "Markdown", "REPL", "Test", "Unicode"]
-git-tree-sha1 = "51f0c7df46abb9c07d80e529718951e634670afb"
+git-tree-sha1 = "d497bcc45bb98a1fbe19445a774cfafeabc6c6df"
 uuid = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
-version = "0.24.4"
+version = "0.24.5"
 
 [[FFMPEG]]
 deps = ["BinaryProvider", "Libdl"]
@@ -215,9 +215,9 @@ version = "0.8.4"
 
 [[FiniteDiff]]
 deps = ["ArrayInterface", "LinearAlgebra", "Requires", "SparseArrays", "StaticArrays"]
-git-tree-sha1 = "109cca539ac87b1b95538f539ed8eb7e3f35eee5"
+git-tree-sha1 = "eb90294af97b564e6036b49296479d7f667763c0"
 uuid = "6a86dc24-6348-571c-b903-95158fe2bd41"
-version = "2.1.0"
+version = "2.2.0"
 
 [[FixedPointNumbers]]
 git-tree-sha1 = "d14a6fa5890ea3a7e5dcab6811114f132fec2b4b"
@@ -256,7 +256,7 @@ version = "0.44.0"
 
 [[GeoData]]
 deps = ["Dates", "DimensionalData", "GeoFormatTypes", "Missings", "Mixers", "Mmap", "RecipesBase", "Reexport", "Requires"]
-git-tree-sha1 = "06fea8e6e3cdbe422a53aad15e9e6264fd667709"
+git-tree-sha1 = "ff6844cf7bed926975d2f63e2042b4a9f392b268"
 repo-rev = "master"
 repo-url = "https://github.com/rafaqz/GeoData.jl"
 uuid = "9b6fcbb8-86d6-11e9-1ce7-23a6bb139a78"
@@ -269,9 +269,9 @@ version = "0.2.0"
 
 [[GeoInterface]]
 deps = ["RecipesBase"]
-git-tree-sha1 = "fd4e80305286dafb537c7a7ad2c644a860d52192"
+git-tree-sha1 = "98740ed6244ef9ee338332ffc83e452447a4e5c2"
 uuid = "cf35fbd7-0cd7-5166-be24-54bfbe79505f"
-version = "0.5.0"
+version = "0.5.2"
 
 [[GeometryTypes]]
 deps = ["ColorTypes", "FixedPointNumbers", "LinearAlgebra", "StaticArrays"]
@@ -281,7 +281,7 @@ version = "0.7.7"
 
 [[GrowthMaps]]
 deps = ["ConstructionBase", "Dates", "FieldMetadata", "Flatten", "GeoData", "Interact", "LsqFit", "Plots", "Unitful", "UnitfulRecipes"]
-git-tree-sha1 = "f0b7d050dc3b0859c53439763c654181f86a2139"
+git-tree-sha1 = "f312c7d21cbef9bd4f164c9fb08b33ba522a7edf"
 repo-rev = "master"
 repo-url = "https://github.com/cesaraustralia/GrowthMaps.jl"
 uuid = "a252ced4-3752-11e9-0615-256422162c4d"
@@ -301,9 +301,9 @@ version = "0.4.5"
 
 [[IJulia]]
 deps = ["Base64", "Conda", "Dates", "InteractiveUtils", "JSON", "Markdown", "MbedTLS", "Pkg", "Printf", "REPL", "Random", "SoftGlobalScope", "Test", "UUIDs", "ZMQ"]
-git-tree-sha1 = "0fe6aceb9a3c27811797afaf73d6f2ff6021916d"
+git-tree-sha1 = "468b6290cd10ed30732fde36207c64034386c5ef"
 uuid = "7073ff75-c697-5162-941a-fcdaad2a7d2a"
-version = "1.20.2"
+version = "1.21.0"
 
 [[IniFile]]
 deps = ["Test"]
@@ -377,9 +377,9 @@ version = "0.10.0"
 
 [[MacroTools]]
 deps = ["DataStructures", "Markdown", "Random"]
-git-tree-sha1 = "e2fc7a55bb2224e203bbd8b59f72b91323233458"
+git-tree-sha1 = "07ee65e03e28ca88bc9a338a3726ae0c3efaa94b"
 uuid = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
-version = "0.5.3"
+version = "0.5.4"
 
 [[Markdown]]
 deps = ["Base64"]
@@ -419,7 +419,7 @@ version = "1.0.0"
 
 [[NCDatasets]]
 deps = ["BinDeps", "CFTime", "CondaBinDeps", "DataStructures", "Dates", "Libdl", "Printf"]
-git-tree-sha1 = "6f9e7cce642b558cabf1e796eb5939cb1e304d81"
+git-tree-sha1 = "e25a798c8dbeadbbe9f2ee5a1d7af4fe01a91ad8"
 repo-rev = "master"
 repo-url = "https://github.com/Alexander-Barth/NCDatasets.jl.git"
 uuid = "85f8d34a-cbdd-5861-8df4-14fed0d494ab"
@@ -427,9 +427,9 @@ version = "0.9.6"
 
 [[NLSolversBase]]
 deps = ["DiffResults", "Distributed", "FiniteDiff", "ForwardDiff"]
-git-tree-sha1 = "b13b1f97ce88a37dd55ce7ae7e75b81002bf2b9d"
+git-tree-sha1 = "7c4e66c47848562003250f28b579c584e55becc0"
 uuid = "d41bc354-129a-5804-8e4c-c37616107c6c"
-version = "7.6.0"
+version = "7.6.1"
 
 [[NaNMath]]
 git-tree-sha1 = "928b8ca9b2791081dc71a51c55347c27c618760f"
@@ -462,9 +462,9 @@ version = "0.9.11"
 
 [[Parsers]]
 deps = ["Dates", "Test"]
-git-tree-sha1 = "0139ba59ce9bc680e2925aec5b7db79065d60556"
+git-tree-sha1 = "d112c19ccca00924d5d3a38b11ae2b4b268dda39"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
-version = "0.3.10"
+version = "0.3.11"
 
 [[Pidfile]]
 deps = ["FileWatching", "Test"]
@@ -525,9 +525,9 @@ version = "0.2.0"
 
 [[Requires]]
 deps = ["UUIDs"]
-git-tree-sha1 = "999513b7dea8ac17359ed50ae8ea089e4464e35e"
+git-tree-sha1 = "d37400976e98018ee840e0ca4f9d20baa231dc6b"
 uuid = "ae029012-a4dd-5104-9daa-d747884805df"
-version = "1.0.0"
+version = "1.0.1"
 
 [[Rmath]]
 deps = ["BinaryProvider", "Libdl", "Random", "Statistics"]
@@ -639,9 +639,9 @@ uuid = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
 
 [[Unitful]]
 deps = ["ConstructionBase", "LinearAlgebra", "Random"]
-git-tree-sha1 = "c1ba76e3ca74a838e221e69b0ff8429226c5826a"
+git-tree-sha1 = "0b95bcc0745541528ff3a95b722367e6cc12f43e"
 uuid = "1986cc42-f94f-5a68-af5c-568840ba703d"
-version = "0.18.0"
+version = "1.0.0"
 
 [[UnitfulRecipes]]
 deps = ["RecipesBase", "Unitful"]
