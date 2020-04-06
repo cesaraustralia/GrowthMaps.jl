@@ -15,7 +15,7 @@ using ConstructionBase,
       UnitfulRecipes
 
 import FieldMetadata: @flattenable, flattenable, @bounds, bounds
-using GeoData: Time, rebuild
+using GeoData: rebuild
 using Unitful: °C, K, R
 using Base: tail
 

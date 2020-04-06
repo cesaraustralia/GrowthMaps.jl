@@ -38,7 +38,7 @@ end
 """
 Returns the wrapper holding the fitted model
 """
-manualfit!(wrapper::ModelWrapper, xs, ys, data; kwargs...) =
+manualfit!(wrapper::ModelWrapper, data; xs=[], ys=[],  kwargs...) =
     interface!(wrapper, plotfit, (xs, ys, data); kwargs...)
 
 plotfit(model, (xs, ys, data)) = begin
@@ -51,17 +51,17 @@ end
 """
 Fit a model to the map
 """
-mapfit!(wrapper::ModelWrapper, series, modelkwargs; occurrance=[], precomputed=nothing, kwargs...) =
-    interface!(wrapper, plotmap, (series, modelkwargs, occurrance, precomputed); kwargs...)
+mapfit!(wrapper::ModelWrapper, series, modelkwargs; occurrence=[], precomputed=nothing, kwargs...) =
+    interface!(wrapper, plotmap, (series, modelkwargs, occurrence, precomputed); kwargs...)
 
-plotmap(model, (series, modelkwargs, occurance, precomputed);
+plotmap(model, (series, modelkwargs, occurrence, precomputed);
         window=(Band(1),), levels=10, markercolor=:white, markersize=2.0,
-        size=(1000,400), clims=(-2.0, 0.25), mapkwargs=(), scatterkwargs...) = begin
+        size=(1000,400), clims=(0.0, 0.25), mapkwargs=(), scatterkwargs...) = begin
     output = mapgrowth(model, series; modelkwargs...)
     output = isnothing(precomputed) ? output : output .+ precomputed
-    p = plot(output[window...]; levels=levels, size=size, clims=clims, mapkwargs...)
-    for t in 1:length(dims(output, Time))
-        scatter!(occurance; subplot=t, markercolor=markercolor, markersize=markersize, scatterkwargs...)
+    p = plot(output[window...]; legend=:none, levels=levels, size=size, clims=clims, mapkwargs...)
+    for t in 1:length(dims(output, Ti()))
+        scatter!(occurrence; subplot=t, markercolor=markercolor, markersize=markersize, scatterkwargs...)
     end
     p
 end

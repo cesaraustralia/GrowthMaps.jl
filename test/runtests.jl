@@ -49,7 +49,7 @@ p = 0.3
 T_halfL = 250.0K
 T_halfH = 300.0K
 T_ref = K(25.0°C)
-growth = Layer(:temp, SchoolfieldIntrinsicGrowth(p, ΔH_A, ΔH_L, ΔH_H, T_halfL, T_halfH, T_ref))
+growth = Layer(:temp, SchoolfieldIntrinsicGrowth(p, ΔH_A, ΔH_L, T_halfL, ΔH_H, T_halfH, T_ref))
 
 @testset "Schoolfield Intrinsic growth" begin
     @test keys(growth) == :temp
@@ -122,17 +122,17 @@ end
                           [270.0 280.0], [270.0 280.0], [270.0 280.0]], Ref(dimz); name="tempdata")
     stacks = [GeoStack(NamedTuple{(:lower, :upper, :temp)}((lowerdata[i], upperdata[i], tempdata[i]))) for i in 1:length(lowerdata)]
     parent(copy(stacks)[5][:lower]) === parent(stacks[5][:lower])
-    timedim = (Time([DateTime(2016, 1, 3, 9), 
-                     DateTime(2016, 1, 6, 15),
-                     DateTime(2016, 2, 3, 10), 
-                     DateTime(2016, 2, 3, 14),
-                     DateTime(2016, 2, 18, 10), 
-                     DateTime(2016, 3, 3, 3),
-                     DateTime(2016, 3, 3, 8), 
-                     DateTime(2016, 4, 3, 14),
-                     DateTime(2016, 4, 4, 10), 
-                     DateTime(2016, 4, 16, 14)
-                    ]; grid=RegularGrid(; span=Hour(3))),)
+    timedim = (Ti([DateTime(2016, 1, 3, 9), 
+                   DateTime(2016, 1, 6, 15),
+                   DateTime(2016, 2, 3, 10), 
+                   DateTime(2016, 2, 3, 14),
+                   DateTime(2016, 2, 18, 10), 
+                   DateTime(2016, 3, 3, 3),
+                   DateTime(2016, 3, 3, 8), 
+                   DateTime(2016, 4, 3, 14),
+                   DateTime(2016, 4, 4, 10), 
+                   DateTime(2016, 4, 16, 14)
+                  ]; mode=Sampled(; span=Regular(Hour(3)))),)
 
     series = GeoSeries(stacks, timedim)
     threshold = 5K; mortalityrate = -1/K
@@ -145,11 +145,11 @@ end
                        subperiod=subperiod,
                        subperiod_starts=subperiod_starts)
 
-    @test output[Time(1)] == [-4.0 -3.0]
-    @test output[Time(2)] == [-2.5 -1.5]
-    @test output[Time(At(DateTime(2016, 3, 3)))] == [-0.5 0.0]
-    @test output[Time(At(DateTime(2016, 4, 3)))] == [0.0 0.0]
+    @test output[Ti(1)] == [-4.0 -3.0]
+    @test output[Ti(2)] == [-2.5 -1.5]
+    @test output[Ti(At(DateTime(2016, 3, 3)))] == [-0.5 0.0]
+    @test output[Ti(At(DateTime(2016, 4, 3)))] == [0.0 0.0]
 
-    @test typeof(dims(output)) <: Tuple{Lat,Lon,Time}
-    @test length(val(dims(output, Time))) == 4
+    @test typeof(dims(output)) <: Tuple{Lat,Lon,Ti}
+    @test length(val(dims(output, Ti))) == 4
 end

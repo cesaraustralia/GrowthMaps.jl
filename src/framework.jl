@@ -1,6 +1,6 @@
 """
     mapgrowth(models, series::AbstractGeoSeries;
-              startdate=first(val(dims(series, Time))), nsubperiods=1, subperiod=Day(1),
+              startdate=first(val(dims(series, Ti))), nsubperiods=1, subperiod=Day(1),
               period=Month(1), nperiods=12, constructor=identity)
 
 Combine growth rates accross rate models and subperiods for all required periods.
@@ -11,7 +11,7 @@ Combine growth rates accross rate models and subperiods for all required periods
 
 ## Keyword Arguments
 - `nperiods=12`: number of periods returned in the output
-- `startdate=first(bounds(series, Time)))`: starting date of the sequence
+- `startdate=first(bounds(series, Ti)))`: starting date of the sequence
 - `enddate=startdate + period * nperiods`
 - `period=Month(1)`: length of the period to output
 - `subperiod=Day(1)`: length of the subperiods used to calculate output, such as a whole day to capture daily fluctuations.
@@ -27,7 +27,7 @@ mapgrowth(wrapper::ModelWrapper, series; kwargs...) =
 mapgrowth(model::Tuple, series::AbstractGeoSeries;
           nperiods=1,
           period=Month(1),
-          startdate=first(GeoData.bounds(series, GeoData.Time)),
+          startdate=first(bounds(series, Ti())),
           enddate=startdate + period * nperiods,
           subperiod=Day(1),
           subperiod_starts=startdate:subperiod:enddate) = begin
@@ -37,15 +37,16 @@ mapgrowth(model::Tuple, series::AbstractGeoSeries;
     A = first(values(stackbuffer));
     mask = map(x -> x ? eltype(A)(x) : eltype(A)(NaN), GeoData.boolmask(A))
     # Create an init array without refdims or a name
-    init = GeoArray(A; data=zero(parent(A)), name="growthrate", refdims=())
+    init = GeoArray(A; data=zero(parent(A)), refdims=(), name="growthrate")
 
-    dates = val(dims(series, Time))
+    dates = val(dims(series, Ti()))
     periodstarts = period_startdates(startdate, period, nperiods)
     # Setup output vector
     # Make a 3 dimensional GeoArray for output, adding the time dimension
     # to init (there should be a function for this in DimensionalData.jl - growdim?
+    ti = Ti(periodstarts; mode=Sampled(Ordered(), Regular(period), Intervals(Start())))
     output = GeoArray(init; data=zeros(size(init)..., nperiods),
-                      dims=(dims(init)..., Time(periodstarts; grid=RegularGrid(; step=period))),
+                      dims=(dims(init)..., ti),
                       missingval=eltype(init)(NaN))
 
     println("Running for $(1:nperiods)")
@@ -57,19 +58,19 @@ mapgrowth(model::Tuple, series::AbstractGeoSeries;
         subs = subset_startdates(periodstart, periodend, subperiod_starts)
         for substart in subs
             subend = min(substart + subperiod, periodend)
-            subseries = series[Time<|Between(substart, subend - Second(1))]
-            for t in 1:size(subseries, Time)
-                println("    ", val(dims(subseries, Time))[t])
+            subseries = series[Ti(Between(substart, subend - Second(1)))]
+            for t in 1:size(subseries, Ti)
+                println("    ", val(dims(subseries, Ti))[t])
                 copy!(stackbuffer, subseries[t])
-                output[Time(p)] .+= combinemodels(model, stackbuffer)
+                output[Ti(p)] .+= combinemodels(model, stackbuffer)
                 n += 1
             end
         end
         if n > 0
-            output[Time(p)] .*= parent(mask) ./ n
+            output[Ti(p)] .*= parent(mask) ./ n
         else
             println("    No files found for this period")
-            output[Time(p)] .*= parent(mask)
+            output[Ti(p)] .*= parent(mask)
         end
     end
 
@@ -101,5 +102,5 @@ end
     conditionalrate.(Ref(first(models)), vals[keys(first(models))]) .+ combinemodels(tail(models), vals)
 @inline combinemodels(models::Tuple{T}, vals::NamedTuple) where T =
     conditionalrate.(Ref(first(models)), vals[keys(first(models))])
-@inline conditionalrate(model::Layer, val) = conditionalrate(model.model, val)
+@inline conditionalrate(layer::Layer, val) = conditionalrate(layer.model, val)
 @inline conditionalrate(model::RateModel, val) = condition(model, val) ? rate(model, val) : zero(rate(model, val))
