@@ -23,7 +23,7 @@ jobs:
       script:
         - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
         - julia --project=docs/ -e 'using Pkg; Pkg.add(PackageSpec(url="https://github.com/yeesian/ArchGDAL.jl", rev="master"))'
-        - julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(url="https://github.com/rafaqz/GeoData.jl"))'
+        - julia --project=docs/ -e 'using Pkg; Pkg.add(PackageSpec(url="https://github.com/rafaqz/GeoData.jl, rev="master""))'
         - julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
         - julia --project=docs/ --color=yes docs/make.jl
       name: "HTML"
@@ -35,8 +35,8 @@ notifications:
 
 script:
   - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-  - julia -e 'using Pkg; Pkg.develop(PackageSpec(url="https://github.com/rafaqz/GeoData.jl"))'
   - julia -e 'using Pkg; Pkg.add(PackageSpec(url="https://github.com/yeesian/ArchGDAL.jl", rev="master"))'
+  - julia -e 'using Pkg; Pkg.add(PackageSpec(url="https://github.com/rafaqz/GeoData.jl"))'
   - julia -e 'using Pkg; Pkg.build(); Pkg.test(coverage=true)'
 
 codecov: true
