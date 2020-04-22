@@ -8,7 +8,7 @@ InteractBase.registertheme!(:custombulma, CustomBulma())
 settheme!(CustomBulma())
 
 """
-    fit(model, xs::AbstractArray, ys::AbstractArray)
+    fit(model, obs::AbstractArray)
 
 Fit a model to data with least squares regression, using `curve_fit` from
 LsqFit.jl. The passed in model should be initialised with sensible defaults,
@@ -20,31 +20,32 @@ using the `@flattenable` macro from [FieldMetadata.jl](http://github.com/rafaqz/
 
 ## Arguments
 - `model`: Any constructed [`RateModel`](@ref), including custom models.
-- `xs`: AbstactArray of independent variables (model input values)
-- `ys`: AbstactArray of dependent variables (model output values)
+- `obs`: Vector of observations such as `Tuple`s of `Real`.
 
 ## Returns
 The model with fitted parameters
 """
-fit(model::ModelWrapper, xs::AbstractArray, ys::AbstractArray) = begin
-    wrapper.model = fit(wrapper.model, xs, ys)
+fit(model::ModelWrapper, ob::AbstractArray) = begin
+    wrapper.model = fit(wrapper.model, obs)
     wrapper
 end
-fit(model, xs::AbstractArray, ys::AbstractArray) = begin
-    fit = curve_fit(ModelWrapper(model), xs, ys, [flatten(model, Real)...])
+fit(model, obs::AbstractArray) = begin
+    fit = curve_fit(ModelWrapper(model), first.(obs), last.(obs), [flatten(model, Real)...])
     reconstruct(model, fit.param)
 end
 
 """
+    manualfit!(wrapper::ModelWrapper, data::Array; obs=[],  kwargs...) =
+
 Returns the wrapper holding the fitted model
 """
-manualfit!(wrapper::ModelWrapper, data; xs=[], ys=[],  kwargs...) =
-    interface!(wrapper, plotfit, (xs, ys, data); kwargs...)
+manualfit!(wrapper::ModelWrapper, data; obs=[],  kwargs...) =
+    interface!(wrapper, plotfit, (obs, data); kwargs...)
 
-plotfit(model, (xs, ys, data)) = begin
+plotfit(model, (obs, data)) = begin
     predictions = combinemodels(model, data)
     p = plot(first(data), predictions; label="predicted", legend=false)
-    scatter!(p, xs, ys; label="observed")
+    scatter!(p, obs; label="observed")
     p
 end
 

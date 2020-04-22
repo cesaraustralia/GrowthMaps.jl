@@ -33,9 +33,10 @@ mapgrowth(model::Tuple, series::AbstractGeoSeries;
           subperiod_starts=startdate:subperiod:enddate) = begin
 
     required_keys = Tuple(union(keys(model)))
+    # Copy only the required keys to a memory-backed stack
     stackbuffer = GeoStack(first(series); keys=required_keys)
     A = first(values(stackbuffer));
-    mask = map(x -> x ? eltype(A)(x) : eltype(A)(NaN), GeoData.boolmask(A))
+    mask = map(x -> x ? eltype(A)(x) : eltype(A)(NaN), boolmask(A))
     # Create an init array without refdims or a name
     init = GeoArray(A; data=zero(parent(A)), refdims=(), name="growthrate")
 
@@ -48,6 +49,8 @@ mapgrowth(model::Tuple, series::AbstractGeoSeries;
     output = GeoArray(init; data=zeros(size(init)..., nperiods),
                       dims=(dims(init)..., ti),
                       missingval=eltype(init)(NaN))
+    println(axes(first(stackbuffer)))
+    println(axes(last(stackbuffer)))
 
     println("Running for $(1:nperiods)")
     for p in 1:nperiods
