@@ -25,49 +25,43 @@ mapgrowth(model, series; kwargs...) =
 mapgrowth(wrapper::ModelWrapper, series; kwargs...) =
     mapgrowth(wrapper.model, series; kwargs...)
 mapgrowth(model::Tuple, series::AbstractGeoSeries;
-          nperiods=1,
           period=Month(1),
-          startdate=first(bounds(series, Ti())),
-          enddate=startdate + period * nperiods,
-          subperiod=Day(1),
-          subperiod_starts=startdate:subperiod:enddate) = begin
-
+          nperiods=1,
+          startdate=first(bounds(series, Ti))) = begin
+    enddate = startdate + period * nperiods
     required_keys = Tuple(union(keys(model)))
     # Copy only the required keys to a memory-backed stack
-    stackbuffer = GeoStack(first(series); keys=required_keys)
+    stackbuffer = GeoStack(deepcopy(first(series)); keys=required_keys)
     A = first(values(stackbuffer));
     mask = map(x -> x ? eltype(A)(x) : eltype(A)(NaN), boolmask(A))
-    # Create an init array without refdims or a name
-    init = GeoArray(A; data=zero(parent(A)), refdims=(), name="growthrate")
 
-    dates = val(dims(series, Ti()))
-    periodstarts = period_startdates(startdate, period, nperiods)
+    periodstarts = periodstartdates(startdate, period, nperiods)
     # Setup output vector
     # Make a 3 dimensional GeoArray for output, adding the time dimension
     # to init (there should be a function for this in DimensionalData.jl - growdim?
     ti = Ti(periodstarts; mode=Sampled(Ordered(), Regular(period), Intervals(Start())))
-    output = GeoArray(init; data=zeros(size(init)..., nperiods),
-                      dims=(dims(init)..., ti),
-                      missingval=eltype(init)(NaN))
-    println(axes(first(stackbuffer)))
-    println(axes(last(stackbuffer)))
+    output = GeoArray(zeros(size(A)..., nperiods), (dims(A)..., ti);
+        refdims=(),
+        name="growthrate",
+        missingval=eltype(A)(NaN)
+    )
 
     println("Running for $(1:nperiods)")
     for p in 1:nperiods
-        periodstart = periodstarts[p]
-        println("\n", "Processing period starting: ", periodstart)
-        periodend = periodstart + period
         n = 0
-        subs = subset_startdates(periodstart, periodend, subperiod_starts)
-        for substart in subs
-            subend = min(substart + subperiod, periodend)
-            subseries = series[Ti(Between(substart, subend - Second(1)))]
-            for t in 1:size(subseries, Ti)
-                println("    ", val(dims(subseries, Ti))[t])
-                copy!(stackbuffer, subseries[t])
-                output[Ti(p)] .+= combinemodels(model, stackbuffer)
-                n += 1
-            end
+        periodstart = periodstarts[p]
+        periodend = periodstart + period
+        println("\n", "Processing period between: $periodstart and $periodend")
+        # We don't use `Between` as it might unintentionally cut off the
+        # last time if it partially extends beyond the period.
+        # So we jsut work with time as Points using `Where`.
+        subseries = series[Ti(Where(t -> t >= periodstart && t < periodend))]
+        for t in 1:size(subseries, Ti)
+            println("    ", val(dims(subseries, Ti))[t])
+            # Copy the arrays we need from disk to the buffer stack
+            copy!(stackbuffer, subseries[t])
+            output[Ti(p)] .+= combinemodels(model, stackbuffer)
+            n += 1
         end
         if n > 0
             output[Ti(p)] .*= parent(mask) ./ n
@@ -80,21 +74,8 @@ mapgrowth(model::Tuple, series::AbstractGeoSeries;
     output
 end
 
-period_startdates(startdate, period, nperiods) = [startdate + p * period for p in 0:nperiods-1]
-
-subset_startdates(periodstart, periodend, substarts) = begin
-    # Get the first date in the period
-    firstind = max(1, searchsortedfirst(substarts, periodstart))
-    if firstind > length(substarts) || substarts[firstind] > periodend
-        @warn "No subperiods found for period starting $periodstart"
-    end
-    local lastind = searchsortedlast(substarts, periodend)
-    if substarts[lastind] < periodend
-        substarts[firstind:lastind]
-    else
-        substarts[firstind:lastind-1]
-    end
-end
+periodstartdates(startdate, period, nperiods) =
+    [startdate + p * period for p in 0:nperiods-1]
 
 @inline combinemodels(models, stackbuffer) = combinemodels((models,), stackbuffer)
 @inline combinemodels(models::Tuple, stackbuffer::AbstractGeoStack) =

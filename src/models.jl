@@ -107,10 +107,11 @@ condition(m, x) = true
 abstract type AbstractLowerStress <: StressModel end
 
 # TODO set units in the model, this is a temporary hack
-@inline condition(m::AbstractLowerStress, x) = x * oneunit(m.threshold) < m.threshold
+@inline condition(m::AbstractLowerStress, x) = condition(m, x * oneunit(m.threshold))
 @inline condition(m::AbstractLowerStress, x::Quantity) = x < m.threshold
-@inline rate(m::AbstractLowerStress, x) = (m.threshold - x * oneunit(m.threshold)) * m.mortalityrate
-@inline rate(m::AbstractLowerStress, x::Quantity) = (m.threshold - x) * m.mortalityrate
+@inline rate(m::AbstractLowerStress, x::Quantity) =
+    (m.threshold - x) * m.mortalityrate
+@inline rate(m::AbstractLowerStress, x) = rate(m, x * oneunit(m.threshold))
 
 """
     LowerStress(key::Symbol, threshold, mortalityrate)
@@ -137,10 +138,11 @@ end
 
 abstract type AbstractUpperStress <: StressModel end
 
-@inline condition(m::AbstractUpperStress, x) = x * oneunit(m.threshold) > m.threshold
 @inline condition(m::AbstractUpperStress, x::Quantity) = x > m.threshold
-@inline rate(m::AbstractUpperStress, x) = (x * oneunit(m.threshold) - m.threshold) * m.mortalityrate
-@inline rate(m::AbstractUpperStress, x::Quantity) = (x - m.threshold) * m.mortalityrate
+@inline condition(m::AbstractUpperStress, x) = condition(m, x * oneunit(m.threshold))
+@inline rate(m::AbstractUpperStress, x::Quantity) =
+    (x - m.threshold) * m.mortalityrate
+@inline rate(m::AbstractUpperStress, x) = rate(m, x * oneunit(m.threshold))
 
 """
     UpperStress(key::Symbol, threshold, mortalityrate)
