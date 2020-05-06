@@ -66,7 +66,7 @@ mapgrowth(model::Tuple, series::AbstractGeoSeries;
         if n > 0
             output[Ti(p)] .*= parent(mask) ./ n
         else
-            println("    No files found for this period")
+            @warn ("No files found for the $period period starting $periodstart")
             output[Ti(p)] .*= parent(mask)
         end
     end

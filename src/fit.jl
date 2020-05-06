@@ -1,11 +1,11 @@
 
-struct CustomBulma <: InteractBase.WidgetTheme; end
+# struct CustomBulma <: InteractBase.WidgetTheme; end
 
-const custom_css = "/home/raf/julia/GrowthMaps/assets/interact.css"
+# const custom_css = "/home/raf/julia/GrowthMaps/assets/interact.css"
 
-InteractBase.libraries(::CustomBulma) = [InteractBase.libraries(Interact.Bulma())...]
-InteractBase.registertheme!(:custombulma, CustomBulma())
-settheme!(CustomBulma())
+# InteractBase.libraries(::CustomBulma) = [InteractBase.libraries(Interact.Bulma())...]
+# InteractBase.registertheme!(:custombulma, CustomBulma())
+# settheme!(CustomBulma())
 
 """
     fit(model, obs::AbstractArray)
@@ -25,7 +25,7 @@ using the `@flattenable` macro from [FieldMetadata.jl](http://github.com/rafaqz/
 ## Returns
 The model with fitted parameters
 """
-fit(model::ModelWrapper, ob::AbstractArray) = begin
+fit(wrapper::ModelWrapper, obs::AbstractArray) = begin
     wrapper.model = fit(wrapper.model, obs)
     wrapper
 end
@@ -39,12 +39,13 @@ end
 
 Returns the wrapper holding the fitted model
 """
-manualfit!(wrapper::ModelWrapper, data; obs=[],  kwargs...) =
-    interface!(wrapper, plotfit, (obs, data); kwargs...)
+manualfit!(wrapper::ModelWrapper, ranges::NamedTuple{<:Any,<:Tuple{Vararg{<:AbstractVector}}}; 
+           obs=[], kwargs...) =
+    interface!(wrapper, plotfit, (obs, ranges); kwargs...)
 
-plotfit(model, (obs, data)) = begin
-    predictions = combinemodels(model, data)
-    p = plot(first(data), predictions; label="predicted", legend=false)
+plotfit(model, (obs, ranges)) = begin
+    predictions = combinemodels(model, ranges)
+    p = plot(first(ranges), predictions; label="predicted", legend=false)
     scatter!(p, obs; label="observed")
     p
 end
@@ -57,10 +58,10 @@ mapfit!(wrapper::ModelWrapper, series, modelkwargs; occurrence=[], precomputed=n
 
 plotmap(model, (series, modelkwargs, occurrence, precomputed);
         window=(Band(1),), levels=10, markercolor=:white, markersize=2.0,
-        size=(1000,400), clims=(0.0, 0.25), mapkwargs=(), scatterkwargs...) = begin
+        clims=(0.0, 0.25), mapkwargs=(), scatterkwargs...) = begin
     output = mapgrowth(model, series; modelkwargs...)
     output = isnothing(precomputed) ? output : output .+ precomputed
-    p = plot(output[window...]; legend=:none, levels=levels, size=size, clims=clims, mapkwargs...)
+    p = plot(output[window...]; legend=:none, levels=levels, clims=clims, mapkwargs...)
     for t in 1:length(dims(output, Ti()))
         scatter!(occurrence; subplot=t, markercolor=markercolor, markersize=markersize, scatterkwargs...)
     end
@@ -111,9 +112,3 @@ make_slider(val, lab, rng, attr) = slider(rng; label=string(lab), value=val, att
 
 buildrange(bounds::Tuple, val::T) where T =
     T(bounds[1]):(T(bounds[2])-T(bounds[1]))/1000:T(bounds[2])
-
-electronfit(app; zoom=1.0) = begin
-    ui = app(nothing)
-    w = Window(Dict("webPreferences"=>Dict("zoomFactor"=>zoom)));
-    body!(w, ui);
-end
