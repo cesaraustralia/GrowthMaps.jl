@@ -41,7 +41,7 @@ Thalf_L = 2e2K
 Thalf_H = 3e2K
 T_ref = K(25.0°C)
 growthmodel = SchoolfieldIntrinsicGrowth(p, ΔH_A, ΔH_L, Thalf_L, ΔH_H, Thalf_H, T_ref)
-growth = Layer(:surface_temp, growthmodel)
+growth = Layer(:surface_temp, K, growthmodel)
 ```
 
 
@@ -77,7 +77,7 @@ fittedgrowth = fit(growth, obs)
 Now plot the fit against the data:
 
 ```julia; results=hidden
-temprange = 270.0:0.1:310.0
+temprange = (270.0:0.1:310.0)K
 p = plot(x -> GrowthMaps.rate(fittedgrowth, x), temprange; label="fitted")
 scatter!(p, obs; label="observed ")
 ```
@@ -124,21 +124,15 @@ zipfilepath = joinpath(basedir, "SMAP_aggregated27km.zip")
 unzippedfolder = joinpath(basedir, "SMAP_aggregated27km")
 isfile(zipfilepath) || download(dataurl, zipfilepath)
 run(`unzip -o $zipfilepath -d $basedir`);
-```
 
-Get the paths for to all the wilting and surface temp files using `filter`:
-
-```julia; results=hidden
+# Get the paths for to all the wilting and surface temp files
 filenames = readdir(unzippedfolder)
 wilting_filenames = filter(fn -> occursin(r"land_fraction_wilting", fn), filenames)
 surface_temp_filenames = filter(fn -> occursin(r"surface_temp", fn), filenames)
 wilting_paths = joinpath.(Ref(unzippedfolder), wilting_filenames)
 surface_temp_paths = joinpath.(Ref(unzippedfolder), surface_temp_filenames)
-```
 
-Get the dates covered in the data from the `surface_temp` files list, using regex:
-
-```julia; results=hidden
+# Get the dates covered in the data from the `surface_temp` files list using regex
 df = DateFormat("yyyymmddTHHMMSS");
 dates = DateTime.(replace.(surface_temp_paths, Ref(r".*_(\d+T\d+).tif" => s"\1")), Ref(df))
 ```
@@ -165,9 +159,7 @@ tiffseries = GeoSeries(stacks, (timedim,))
 We can plot a layer from a file at some date in the series:
 
 ```julia; results=hidden
-A = tiffseries[Ti(Near(DateTime(2016, 1)))][:surface_temp]
-A |> plot
-
+tiffseries[Ti(Near(DateTime(2016, 1)))][:surface_temp] |> plot
 savefig(joinpath(basedir, "build/assets/surface_temp.png"))
 ```
 
@@ -185,7 +177,8 @@ And run it:
 
 ```julia; results=hidden
 subperiod = Day(1)
-output = mapgrowth(fittedgrowth, tiffseries;
+output = mapgrowth(fittedgrowth;
+    series=tiffseries,
     startdate=DateTime(2016),
     period = Month(12),
     nperiods = 1,
@@ -215,45 +208,39 @@ wilting as an indicater of stress induced by lack of moisture.
 ```julia; results=hidden
 coldthresh = 7.0°C |> K  # Enriquez2017
 coldmort = -log(1.00) * K^-1
-coldstress = Layer(:surface_temp, ColdStress(coldthresh, coldmort))
+coldstress = Layer(:surface_temp, K, ColdStress(coldthresh, coldmort))
 
 heatthresh = 30.0°C |> K # Kimura2004
 heatmort = -log(1.15) * K^-1
-heatstress = Layer(:surface_temp, HeatStress(heatthresh, heatmort))
+heatstress = Layer(:surface_temp, K, HeatStress(heatthresh, heatmort))
 
 wiltthresh = 0.5 # default?
 wiltmort = -log(1.1);
 wiltstress = Layer(:land_fraction_wilting, WiltStress(wiltthresh, wiltmort));
 ```
-To build a more complex model, we can chain components together in a tuple:
+To build a more complex model, we can chain components together
+in a tuple, and again, run and plot them:
 
 ```julia; results=hidden
-model = fittedgrowth, heatstress;
-```
-
-And again, run and plot them:
-
-```julia; results=hidden
-output = mapgrowth(model, tiffseries;
-                   period=period,
-                   nperiods=nperiods,
-                   subperiod=subperiod,
-                   startdate=startdate
-                  )
+output = mapgrowth(fittedgrowth, heatstress;
+    series=tiffseries,
+    period=Month(1),
+    nperiods=12,
+    startdate=DateTime(2016),
+)
 output[Ti(1)] |> plot
 ```
 
 That looks better. There are negative growth rates in hot regions.
-Now lets define a full model with growth and three stressors:
+Now lets run a full model with growth and three stressors:
 
 ```julia; results=hidden
-model = fittedgrowth, coldstress, heatstress, wiltstress
-@time output = mapgrowth(model, tiffseries;
-                   period=period,
-                   nperiods=nperiods,
-                   subperiod=subperiod,
-                   startdate=startdate
-                  )
+output = mapgrowth(fittedgrowth, coldstress, heatstress, wiltstress;
+    series=tiffseries,
+    period=Month(1),
+    nperiods=12,
+    startdate=DateTime(2016),
+)
 output[Ti(1)] |> plot
 savefig(joinpath(basedir, "build/assets/growthrates.png"));
 ```
@@ -271,7 +258,7 @@ isfile(csvfilename) || download(joinpath(csvurl, csvfilename))
 obs = CSV.File(csvfilename)
 occurrence = collect(zip(obs.Longitude, obs.Latitude))
 p = output[Ti(1)] |> plot
-scatter!(p, occurance; markersize=2.0, markercolor=:white, markershape=:circle, label="obs")
+scatter!(p, occurrence; markersize=2.0, markercolor=:white, markershape=:circle, label="obs")
 ```
 
 # Parametrising models using interactive maps
@@ -296,9 +283,13 @@ Seeing we allready fit the growth response to empiracle data, lets just fit
 the stress responses to the map:
 
 ```julia; results=hidden
-modelkwargs = (; period=period, nperiods=nperiods, subperiod=subperiod, startdate=startdate)
-precomputed = mapgrowth(fittedgrowth, aggseries; modelkwargs...)
-typeof(aggseries)
+modelkwargs = (;
+    series=aggseries,
+    period=Month(12),
+    nperiods=1,
+    startdate=DateTime(2016)
+)
+precomputed = mapgrowth(fittedgrowth; modelkwargs...)
 ```
 
 Then fit the other components. `throttle` will dictate how fast the interface updates. Make it larger on a slow machine,
@@ -307,13 +298,14 @@ smaller on a faster one.
 ```julia; results=hidden
 wrapper = ModelWrapper(wiltstress, coldstress, heatstress)
 throttle = 0.2
-mapfit!(wrapper, aggseries, modelkwargs;
-        occurrence=occurrence,
-        precomputed=precomputed,
-        throttle=throttle,
-        markershape=:cross,
-        markercolor=:lightblue,
-        markeropacity=0.4)
+mapfit!(wrapper, modelkwargs;
+    occurrence=occurrence,
+    precomputed=precomputed,
+    throttle=throttle,
+    markershape=:cross,
+    markercolor=:lightblue,
+    markeropacity=0.4
+)
 ```
 
 And get the updated model components from the wrapper:
@@ -326,26 +318,17 @@ Now we will put together decent population growth maps
 using higher resolutions data, and a monthly tiestep:
 
 ```julia; results=hidden
-tstart, tstop = Date(2016), Date(2017)
-yearseries = tiffseries[Where(t -> t >= tstart && t < tstop)]
-@assert length(yearseries)
-period = Month(1)
-nperiods = 12
-subperiod = Day(1)
-
-model = fittedgrowth, wiltstress, coldstress, heatstress
-output = mapgrowth(model, yearseries;
-                   period=period,
-                   nperiods=nperiods,
-                   subperiod=subperiod,
-                   startdate=startdate
-                  );
-
+output = mapgrowth(fittedgrowth, wiltstress, coldstress, heatstress;
+   series=tiffseries,
+   period=Month(1),
+   nperiods=12,
+   startdate=DateTime(2016),
+);
 plot(output[Ti(1:3:12)]; axis=false)
 ```
 
 This is ready to use for projecting growthrates, or in a dispersal
-simulation using Dispersal.jl. Lets save it as a NetCDF file:
+simulation using Dispersal.jl. Lets save it as a NetCDF file using GeoData.jl:
 
 ```julia; results=hidden
 savepath = joinpath(basedir, "growthrates.ncd")
@@ -358,33 +341,27 @@ We can load it again with:
 
 ```julia; results=hidden
 ncarray = NCDarray(savepath)
-plot(ncarray[Ti(1:3:12)]; axis=false)
+plot(ncarray[Ti(1)]; axis=false)
 ```
 
 Now, if you need to use the model for a serious application, run it on the real
 SMAP dataset. GeoData.jl has a `SMAPseries()` constructor that will automate the
 whole process of loading SMAP HDF5 files from a folder.
 
-```julia
+We reduce the numer of days processed to 8 each month using the
+`Where` selector from DimensionalData.jl.
+
+```julia; eval=false
 using HDF5
 smappath = "/home/raf/Storage/Data/SMAP/SMAP_L4_SM_gph_v4"
-tstart, tstop = Date(2017), Date(2018)
 days = (1, 4, 8, 12, 16, 20, 23, 27)
-smapseries = SMAPseries(smappath)[Where(t -> t >= tstart && t < tstop && dayofmonth(t) in days)]
-@assert length(smapseries) == 12 * 8 * 8
-@time output = mapgrowth((fittedgrowth, wiltstress, coldstress, heatstress), smapseries;
-                   period=Month(1),
-                   nperiods=12,
-                   subperiod=Day(1),
-                   startdate=startdate
-                  );
-
+smapseries = SMAPseries(smappath)[Where(t -> dayofmonth(t) in days)]
+@time output = mapgrowth(fittedgrowth, wiltstress, coldstress, heatstress;
+    series=smapseries,
+    period=Month(1),
+    nperiods=12,
+    startdate=DateTime(2016)
+)
 plot(output[Ti(1:3:12)]; axis=false)
-
-savepath = joinpath(basedir, "growthrates.ncd")
-write(savepath, NCDarray, output)
-
-ncarray = NCDarray(savepath)
-plot(ncarray[Ti(1:3:12)]; axis=false)
-size(ncarray)
+write(joinpath(basedir, "growthrates.ncd"), NCDarray, output)
 ```

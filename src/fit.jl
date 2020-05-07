@@ -19,19 +19,27 @@ Any (nested) `Real` fields on the struct are flattened to a parameter vector usi
 using the `@flattenable` macro from [FieldMetadata.jl](http://github.com/rafaqz/FieldMetadata.jl).
 
 ## Arguments
-- `model`: Any constructed [`RateModel`](@ref), including custom models.
-- `obs`: Vector of observations such as `Tuple`s of `Real`.
+- `model`: Any constructed [`RateModel`](@ref) or a `Tuple` of `RateModel`.
+- `obs`: `Vector` of observations, such as length 2 `Tuple`s of `Real`.
+  Leave units off.
 
 ## Returns
-The model with fitted parameters
+An updated model with fitted parameters.
 """
-fit(wrapper::ModelWrapper, obs::AbstractArray) = begin
-    wrapper.model = fit(wrapper.model, obs)
-    wrapper
-end
 fit(model, obs::AbstractArray) = begin
     fit = curve_fit(ModelWrapper(model), first.(obs), last.(obs), [flatten(model, Real)...])
     reconstruct(model, fit.param)
+end
+
+"""
+    fit!(model::ModelWrapper, obs::AbstractArray)
+
+Run `fit` on the contained model, and write the
+updated model to the mutable modelwrapper.
+"""
+fit!(wrapper::ModelWrapper, obs::AbstractArray) = begin
+    wrapper.model = fit(wrapper.model, obs)
+    wrapper
 end
 
 """
@@ -39,9 +47,9 @@ end
 
 Returns the wrapper holding the fitted model
 """
-manualfit!(wrapper::ModelWrapper, ranges::NamedTuple{<:Any,<:Tuple{Vararg{<:AbstractVector}}}; 
+manualfit!(wrapper::ModelWrapper, ranges::NamedTuple{<:Any,<:Tuple{Vararg{<:AbstractVector}}};
            obs=[], kwargs...) =
-    interface!(wrapper, plotfit, (obs, ranges); kwargs...)
+    interface!(plotfit, wrapper, (obs, ranges); kwargs...)
 
 plotfit(model, (obs, ranges)) = begin
     predictions = combinemodels(model, ranges)
@@ -53,13 +61,13 @@ end
 """
 Fit a model to the map
 """
-mapfit!(wrapper::ModelWrapper, series, modelkwargs; occurrence=[], precomputed=nothing, kwargs...) =
-    interface!(wrapper, plotmap, (series, modelkwargs, occurrence, precomputed); kwargs...)
+mapfit!(wrapper::ModelWrapper, modelkwargs; occurrence=[], precomputed=nothing, kwargs...) =
+    interface!(plotmap, wrapper, (modelkwargs, occurrence, precomputed); kwargs...)
 
-plotmap(model, (series, modelkwargs, occurrence, precomputed);
+plotmap(model, (modelkwargs, occurrence, precomputed);
         window=(Band(1),), levels=10, markercolor=:white, markersize=2.0,
         clims=(0.0, 0.25), mapkwargs=(), scatterkwargs...) = begin
-    output = mapgrowth(model, series; modelkwargs...)
+    output = mapgrowth(model; modelkwargs...)
     output = isnothing(precomputed) ? output : output .+ precomputed
     p = plot(output[window...]; legend=:none, levels=levels, clims=clims, mapkwargs...)
     for t in 1:length(dims(output, Ti()))
@@ -68,7 +76,8 @@ plotmap(model, (series, modelkwargs, occurrence, precomputed);
     p
 end
 
-interface!(wrapper::ModelWrapper, f, data; use=Number, ignore=Nothing, throttle=0.1, kwargs...) = begin
+interface!(f, wrapper::ModelWrapper, data;
+           use=Number, ignore=Nothing, throttle=0.1, kwargs...) = begin
     plotobs = Observable(f(wrapper.model, data; kwargs...))
     sliders, slider_obs, slider_groups = build_sliders(wrapper.model, use, ignore, throttle)
     on(slider_obs) do params
@@ -108,7 +117,8 @@ build_sliders(model, use, ignore, _throttle) = begin
     sliders, slider_obs, slider_groups
 end
 
-make_slider(val, lab, rng, attr) = slider(rng; label=string(lab), value=val, attributes=attr)
+make_slider(val, lab, rng, attr) =
+    slider(rng; label=string(lab), value=val, attributes=attr)
 
 buildrange(bounds::Tuple, val::T) where T =
     T(bounds[1]):(T(bounds[2])-T(bounds[1]))/1000:T(bounds[2])

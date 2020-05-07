@@ -20,14 +20,18 @@ Combine growth rates accross rate models and subperiods for all required periods
 The output is a GeoArray with the same dimensions as the passed in stack layers, and a Time
 dimension with a length of `nperiods`.
 """
-mapgrowth(model, series; kwargs...) =
-    mapgrowth((model,), series; kwargs...)
-mapgrowth(wrapper::ModelWrapper, series; kwargs...) =
-    mapgrowth(wrapper.model, series; kwargs...)
-mapgrowth(model::Tuple, series::AbstractGeoSeries;
+mapgrowth(; model, kwargs...) =
+    mapgrowth(model; kwargs...)
+mapgrowth(wrapper::ModelWrapper; kwargs...) =
+    mapgrowth(wrapper.model; kwargs...)
+mapgrowth(model...; kwargs...) =
+    mapgrowth(model; kwargs...)
+mapgrowth(model::Tuple; 
+          series,
           period=Month(1),
           nperiods=1,
           startdate=first(bounds(series, Ti))) = begin
+    println("main")
     enddate = startdate + period * nperiods
     required_keys = Tuple(union(keys(model)))
     # Copy only the required keys to a memory-backed stack
@@ -88,6 +92,8 @@ periodstartdates(startdate, period, nperiods) =
     conditionalrate.(Ref(first(models)), vals[keys(first(models))])
 @inline conditionalrate(l::Layer, val) = 
     conditionalrate(model(l), unit(l) * val)
+@inline conditionalrate(l::Layer, val::Quantity) = 
+    conditionalrate(model(l), val)
 @inline conditionalrate(model::RateModel, val) = 
     condition(model, val) ? rate(model, val) : zero(rate(model, val))
 

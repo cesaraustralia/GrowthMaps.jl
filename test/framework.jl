@@ -41,16 +41,17 @@ end
     @test series[At(DateTime(2016, 1, 3, 9))][:stress] == [1. 2.]
 
     # Set up models
-    lowerthreshold = 5K
-    lowermortalityrate = -1/K
+    lowerthreshold = 5
+    lowermortalityrate = -1
     lower = Layer(:stress, LowerStress(lowerthreshold, lowermortalityrate))
 
     upperthreshold = 5K
     uppermortalityrate = -1/K
-    upper = Layer(:stress, UpperStress(upperthreshold, uppermortalityrate))
+    upper = Layer(:stress, K, UpperStress(upperthreshold, uppermortalityrate))
 
     # Lower
-    output = mapgrowth(lower, series;
+    output = mapgrowth(lower; 
+        series=series,
         period=Month(1),
         nperiods=4,
         startdate=DateTime(2016, 1, 3),
@@ -68,7 +69,8 @@ end
     @test length(val(dims(output, Ti))) == 4
 
     # Upper
-    output = mapgrowth(upper, series;
+    output = mapgrowth(upper;
+        series=series,
         period=Month(1),
         nperiods=4,
         startdate=DateTime(2016, 1, 3),
@@ -80,7 +82,8 @@ end
     @test output[Ti(At(DateTime(2016, 4, 3)))] == [-1.0 -2.0]
 
     # Lower and Uppera, in a ModelWrapper with an extra period
-    output = mapgrowth(ModelWrapper(lower, upper), series;
+    output = mapgrowth(ModelWrapper(lower, upper);
+        series=series,
         period=Month(1),
         nperiods=5,
         startdate=DateTime(2016, 1, 3),
@@ -95,7 +98,8 @@ end
     @test output[Ti(At(DateTime(2016, 4, 3)))] == [-1.0 -2.0]
 
     @test_logs (:warn,"No files found for the 1 month period starting 2016-05-03T00:00:00") mapgrowth(
-        ModelWrapper((lower, upper)), series;
+    ModelWrapper((lower, upper));
+        series=series,
         period=Month(1),
         nperiods=5,
         startdate=DateTime(2016, 1, 3),

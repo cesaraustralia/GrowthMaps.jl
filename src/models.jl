@@ -93,8 +93,8 @@ condition(m, x) = true
 abstract type AbstractLowerStress <: StressModel end
 
 # TODO set units in the model, this is a temporary hack
-@inline condition(m::AbstractLowerStress, x::Quantity) = x < m.threshold
-@inline rate(m::AbstractLowerStress, x::Quantity) = (m.threshold - x) * m.mortalityrate
+@inline condition(m::AbstractLowerStress, x) = x < m.threshold
+@inline rate(m::AbstractLowerStress, x) = (m.threshold - x) * m.mortalityrate
 
 """
     LowerStress(key::Symbol, threshold, mortalityrate)
@@ -121,8 +121,8 @@ end
 
 abstract type AbstractUpperStress <: StressModel end
 
-@inline condition(m::AbstractUpperStress, x::Quantity) = x > m.threshold
-@inline rate(m::AbstractUpperStress, x::Quantity) = (x - m.threshold) * m.mortalityrate
+@inline condition(m::AbstractUpperStress, x) = x > m.threshold
+@inline rate(m::AbstractUpperStress, x) = (x - m.threshold) * m.mortalityrate
 
 """
     UpperStress(key::Symbol, threshold, mortalityrate)
@@ -176,7 +176,7 @@ et al. 2006; Chien and Chang 2007) and non-linear least squares regression.
     T_ref::TR    | false | _
 end
 
-@inline rate(m::SchoolfieldIntrinsicGrowth, x::Quantity) = begin
+@inline rate(m::SchoolfieldIntrinsicGrowth, x) = begin
     @fastmath m.p * x/m.T_ref * exp(m.ΔH_A/R * (1/m.T_ref - 1/x)) /
         (1 + exp(m.ΔH_L/R * (1/m.T_halfL - 1/x)) + exp(m.ΔH_H/R * (1/m.T_halfH - 1/x)))
 end
@@ -185,25 +185,25 @@ end
 
 """
     Layer{K,U}(model::RateModel)
-    Layer(key::Symbol, model::RateModel) 
+    Layer(key::Symbol, model::RateModel)
     Layer(key::Symbol, u::Union{Units,Quantity}, model::RateModel)
 
-Layers connect a model to a data source, providing the key to look 
-up the layer in a GeoData.jl `GeoStack`, and specifying the 
+Layers connect a model to a data source, providing the key to look
+up the layer in a GeoData.jl `GeoStack`, and specifying the
 scientific units of the layer, if it has units. Using units adds
 an extra degree of safety to your calculation, and allows for using
 data in different units with the same models.
 """
-struct Layer{K,U<:Units,M<:RateModel}
+struct Layer{K,U,M}
     model::M
 end
-Layer{K,U}(model::RateModel) where {K,U} = 
+Layer{K,U}(model::RateModel) where {K,U} =
     Layer{K,U,typeof(model)}(model)
-Layer(key::Symbol, model::RateModel) = 
-    Layer{key,Unitful.FreeUnits{(),NoDims,nothing},typeof(model)}(model)
-Layer(key::Symbol, u::Units, model::RateModel) = 
-    Layer{key,u,typeof(mode)}(model)
-Layer(key::Symbol, q::Quantity, model::RateModel) = 
+Layer(key::Symbol, model::RateModel) =
+    Layer{key,unit(u"1"),typeof(model)}(model)
+Layer(key::Symbol, u::Units, model::RateModel) =
+    Layer{key,u,typeof(model)}(model)
+Layer(key::Symbol, q::Quantity, model::RateModel) =
     Layer{key,typeof(q),typeof(model)}(model)
 
 model(l::Layer) = l.model
@@ -214,6 +214,6 @@ condition(l::Layer, x) = condition(l.model, x)
 ConstructionBase.constructorof(::Type{<:Layer{K,U}}) where {K,U} = Layer{K,U}
 
 Base.keys(::Layer{K}) where K = K
-Base.keys(layers::Tuple{Vararg{<:Layer}}) = map(keys, models)
+Base.keys(layers::Tuple{Vararg{<:Layer}}) = map(keys, layers)
 
 Unitful.unit(::Layer{K,U}) where {K,U} = U

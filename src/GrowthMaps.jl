@@ -19,7 +19,7 @@ using GeoData: rebuild
 using Unitful: °C, K, R, Units
 using Base: tail
 
-export mapgrowth, fit, manualfit!, mapfit!
+export mapgrowth, fit, fit!, manualfit!, mapfit!
 
 export RateModel
 
