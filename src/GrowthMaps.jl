@@ -16,7 +16,7 @@ using ConstructionBase,
 
 import FieldMetadata: @flattenable, flattenable, @bounds, bounds
 using GeoData: rebuild
-using Unitful: °C, K, R
+using Unitful: °C, K, R, Units
 using Base: tail
 
 export mapgrowth, fit, manualfit!, mapfit!

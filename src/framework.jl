@@ -86,5 +86,8 @@ periodstartdates(startdate, period, nperiods) =
     conditionalrate.(Ref(first(models)), vals[keys(first(models))]) .+ combinemodels(tail(models), vals)
 @inline combinemodels(models::Tuple{T}, vals::NamedTuple) where T =
     conditionalrate.(Ref(first(models)), vals[keys(first(models))])
-@inline conditionalrate(layer::Layer, val) = conditionalrate(layer.model, val)
-@inline conditionalrate(model::RateModel, val) = condition(model, val) ? rate(model, val) : zero(rate(model, val))
+@inline conditionalrate(l::Layer, val) = 
+    conditionalrate(model(l), unit(l) * val)
+@inline conditionalrate(model::RateModel, val) = 
+    condition(model, val) ? rate(model, val) : zero(rate(model, val))
+
