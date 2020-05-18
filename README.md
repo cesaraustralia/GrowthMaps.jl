@@ -17,5 +17,5 @@ For data input, this package leverages
 environmental data from many different sources, loaded lazily in sequence to
 minimise memory use. 
 
-See the [`Examples`](https://cesaraustralia.github.io/GrowthMaps.jl/dev/examples)
+See the [`Examples`](https://cesaraustralia.github.io/GrowthMaps.jl/docs/src/examples)
 section in the documentation to get started.
