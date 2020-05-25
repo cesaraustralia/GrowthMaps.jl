@@ -43,13 +43,41 @@ fit!(wrapper::ModelWrapper, obs::AbstractArray) = begin
 end
 
 """
-    manualfit!(wrapper::ModelWrapper, data::Array; obs=[],  kwargs...) =
+    manualfit!(wrapper::ModelWrapper, ranges::Array; obs=[],  kwargs...) =
 
-Returns the wrapper holding the fitted model
+Returns the wrapper with the fitted model.
+
+- `obs`: A `Vector` of `(val, rate)` tuples/vectors
+- `data`:
+
+# Example
+
+```julia
+p = 3e-01
+ΔH_A = 3e4cal/mol
+ΔH_L = -1e5cal/mol
+ΔH_H = 3e5cal/mol
+Thalf_L = 2e2K
+Thalf_H = 3e2K
+T_ref = K(25.0°C)
+growthmodel = SchoolfieldIntrinsicGrowth(p, ΔH_A, ΔH_L, Thalf_L, ΔH_H, Thalf_H, T_ref)
+model = ModelWrapper(Layer(:surface_temp, K, growthmodel))
+obs = []
+
+tempdata=(surface_temp=(270.0:0.1:310.0)K,)
+manualfit!(model, tempdata; obs=obs)
+
+To use the interface in a desktop app, use Blink.jl:
+
+```julia; eval=false
+using Blink
+w = Blink.Window()
+body!(w, interface)
+```
 """
-manualfit!(wrapper::ModelWrapper, ranges::NamedTuple{<:Any,<:Tuple{Vararg{<:AbstractVector}}};
+manualfit!(wrapper::ModelWrapper, range::NamedTuple{<:Any,<:Tuple{Vararg{<:AbstractVector}}};
            obs=[], kwargs...) =
-    interface!(plotfit, wrapper, (obs, ranges); kwargs...)
+    interface!(plotfit, wrapper, (obs, range); kwargs...)
 
 plotfit(model, (obs, ranges)) = begin
     predictions = combinemodels(model, ranges)
@@ -59,7 +87,33 @@ plotfit(model, (obs, ranges)) = begin
 end
 
 """
-Fit a model to the map
+    mapfit!(wrapper::ModelWrapper, modelkwargs; occurrence=[], precomputed=nothing, kwargs...)
+
+Fit a model to the map.
+
+# Example
+
+```julia
+wrapper = ModelWrapper(wiltstress, coldstress, heatstress)
+throttle = 0.2
+interface = mapfit!(wrapper, modelkwargs;
+    occurrence=occurrence,
+    precomputed=precomputed,
+    throttle=throttle,
+    markershape=:cross,
+    markercolor=:lightblue,
+    markeropacity=0.4
+)
+display(interface)
+``` 
+
+To use the interface in a desktop app, use Blink.jl:
+
+```julia; eval=false
+using Blink
+w = Blink.Window()
+body!(w, interface)
+```
 """
 mapfit!(wrapper::ModelWrapper, modelkwargs; occurrence=[], precomputed=nothing, kwargs...) =
     interface!(plotmap, wrapper, (modelkwargs, occurrence, precomputed); kwargs...)

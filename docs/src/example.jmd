@@ -298,7 +298,7 @@ smaller on a faster one.
 ```julia; results=hidden
 wrapper = ModelWrapper(wiltstress, coldstress, heatstress)
 throttle = 0.2
-mapfit!(wrapper, modelkwargs;
+interface = mapfit!(wrapper, modelkwargs;
     occurrence=occurrence,
     precomputed=precomputed,
     throttle=throttle,
@@ -306,6 +306,15 @@ mapfit!(wrapper, modelkwargs;
     markercolor=:lightblue,
     markeropacity=0.4
 )
+display(interface)
+```
+
+To use the interface in a desktop app, use Blink.jl:
+
+```julia; eval=false
+using Blink
+w = Blink.Window()
+body!(w, interface)
 ```
 
 And get the updated model components from the wrapper:

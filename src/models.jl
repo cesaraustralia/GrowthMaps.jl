@@ -166,7 +166,7 @@ The value of the specified data layer _must_ be in Kelvin.
 This can be parameterised from empirical data, (see Zhang et al. 2000; Haghani
 et al. 2006; Chien and Chang 2007) and non-linear least squares regression.
 """
-@bounds @flattenable struct SchoolfieldIntrinsicGrowth{P,HA,HL,HH,TL,TH,TR} <: GrowthModel
+@flattenable @bounds struct SchoolfieldIntrinsicGrowth{P,HA,HL,HH,TL,TH,TR} <: GrowthModel
     p::P         | true  | (0.0, 1.0)
     ΔH_A::HA     | true  | (0.0u"cal/mol", 1e6u"cal/mol")
     ΔH_L::HL     | true  | (-1e6u"cal/mol", 0.0u"cal/mol")
