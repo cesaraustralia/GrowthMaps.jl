@@ -171,18 +171,16 @@ the available times over one day:
 
 ## Run a model over the spatial data
 
-First we'll run a simple model that only calculates growth rate.
+Define a timespan to run the model over:
 
-And run it:
+```julia
+tspan=DateTime(2016,1):Month(1):DateTime(2016,12),
+```
+
+Then to start, we'll run a simple model that only calculates growth rate.
 
 ```julia; results=hidden
-subperiod = Day(1)
-output = mapgrowth(fittedgrowth;
-    series=tiffseries,
-    startdate=DateTime(2016),
-    period = Month(12),
-    nperiods = 1,
-);
+output = mapgrowth(fittedgrowth; series=tiffseries, tspan=tspan);
 ```
 
 Then plot the results:
@@ -222,12 +220,7 @@ To build a more complex model, we can chain components together
 in a tuple, and again, run and plot them:
 
 ```julia; results=hidden
-output = mapgrowth(fittedgrowth, heatstress;
-    series=tiffseries,
-    period=Month(1),
-    nperiods=12,
-    startdate=DateTime(2016),
-)
+output = mapgrowth(fittedgrowth, heatstress; series=tiffseries, tspan=tspan)
 output[Ti(1)] |> plot
 ```
 
@@ -236,10 +229,7 @@ Now lets run a full model with growth and three stressors:
 
 ```julia; results=hidden
 output = mapgrowth(fittedgrowth, coldstress, heatstress, wiltstress;
-    series=tiffseries,
-    period=Month(1),
-    nperiods=12,
-    startdate=DateTime(2016),
+    series=tiffseries, tspan=tspan
 )
 output[Ti(1)] |> plot
 savefig(joinpath(basedir, "build/assets/growthrates.png"));
@@ -272,6 +262,7 @@ a more manageable size.
 
 You can experiment with the `agg` size to compromise between quality and render time. Large values
 will look pixelated but will run fast.
+
 ```julia; results=hidden
 agg = 8
 aggseries = GeoData.aggregate(Center(), tiffseries, (Lon(agg), Lat(agg)))
@@ -283,12 +274,7 @@ Seeing we allready fit the growth response to empiracle data, lets just fit
 the stress responses to the map:
 
 ```julia; results=hidden
-modelkwargs = (;
-    series=aggseries,
-    period=Month(12),
-    nperiods=1,
-    startdate=DateTime(2016)
-)
+modelkwargs = (series=aggseries, tspan=tspan)
 precomputed = mapgrowth(fittedgrowth; modelkwargs...)
 ```
 
@@ -328,10 +314,7 @@ using higher resolutions data, and a monthly tiestep:
 
 ```julia; results=hidden
 output = mapgrowth(fittedgrowth, wiltstress, coldstress, heatstress;
-   series=tiffseries,
-   period=Month(1),
-   nperiods=12,
-   startdate=DateTime(2016),
+    series=tiffseries, tspan=tspan,
 );
 plot(output[Ti(1:3:12)]; axis=false)
 ```
@@ -366,10 +349,7 @@ smappath = "/home/raf/Storage/Data/SMAP/SMAP_L4_SM_gph_v4"
 days = (1, 4, 8, 12, 16, 20, 23, 27)
 smapseries = SMAPseries(smappath)[Where(t -> dayofmonth(t) in days)]
 @time output = mapgrowth(fittedgrowth, wiltstress, coldstress, heatstress;
-    series=smapseries,
-    period=Month(1),
-    nperiods=12,
-    startdate=DateTime(2016)
+    series=smapseries, tspan=tspan,
 )
 plot(output[Ti(1:3:12)]; axis=false)
 write(joinpath(basedir, "growthrates.ncd"), NCDarray, output)

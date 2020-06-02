@@ -1,15 +1,6 @@
 using GrowthMaps, GeoData, Dates, Test
 using Unitful: °C, K, hr, d, mol, cal
 
-@testset "selection of dates for periods and subperiods" begin
-    nperiods = 2
-    period = Month(1)
-    startdate = DateTime(2016)
-    @testset "Test generation of start dates" begin
-        @test GrowthMaps.periodstartdates(startdate, period, nperiods) == [DateTime(2016, 1, 1), DateTime(2016, 2, 1)]
-    end
-end
-
 @testset "mapgrowth" begin
     dimz = Lat(10:10), Lon((100, 110))
 
@@ -52,9 +43,7 @@ end
     # Lower
     output = mapgrowth(lower; 
         series=series,
-        period=Month(1),
-        nperiods=4,
-        startdate=DateTime(2016, 1, 3),
+        tspan=DateTime(2016, 1, 3):Month(1):DateTime(2016, 4, 3)
     );
 
     # Test were are not touching the original arrays
@@ -71,9 +60,7 @@ end
     # Upper
     output = mapgrowth(upper;
         series=series,
-        period=Month(1),
-        nperiods=4,
-        startdate=DateTime(2016, 1, 3),
+        tspan=DateTime(2016, 1, 3):Month(1):DateTime(2016, 4, 3)
     );
 
     @test output[Ti(1)] == [0. 0.]
@@ -84,9 +71,7 @@ end
     # Lower and Uppera, in a ModelWrapper with an extra period
     output = mapgrowth(ModelWrapper(lower, upper);
         series=series,
-        period=Month(1),
-        nperiods=5,
-        startdate=DateTime(2016, 1, 3),
+        tspan=DateTime(2016, 1, 3):Month(1):DateTime(2016, 5, 3)
     );
 
     # Test were are still not touching the original arrays
@@ -100,9 +85,7 @@ end
     @test_logs (:warn,"No files found for the 1 month period starting 2016-05-03T00:00:00") mapgrowth(
     ModelWrapper((lower, upper));
         series=series,
-        period=Month(1),
-        nperiods=5,
-        startdate=DateTime(2016, 1, 3),
+        tspan=DateTime(2016, 1, 3):Month(1):DateTime(2016, 5, 3)
     );
 
 end

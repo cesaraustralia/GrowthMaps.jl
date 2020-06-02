@@ -1,49 +1,38 @@
 """
-    mapgrowth(models, series::AbstractGeoSeries;
-              startdate=first(val(dims(series, Ti))), nsubperiods=1, subperiod=Day(1),
-              period=Month(1), nperiods=12, constructor=identity)
+    mapgrowth(models; series::AbstractGeoSeries, tspan::AbstractRange)
 
 Combine growth rates accross rate models and subperiods for all required periods.
 
 ## Arguments
-- `models`: tuple of any RateModel compnents
-- `series`: any AbstractGeoSeries from [GeoData.jl](http://github.com/rafaqz/GeoData.jl)
+- `models`: `ModelWrapper` or Tuple of `Layer` components, 
+  which can also be passed in as individual args.
 
 ## Keyword Arguments
-- `nperiods=12`: number of periods returned in the output
-- `startdate=first(bounds(series, Ti)))`: starting date of the sequence
-- `enddate=startdate + period * nperiods`
-- `period=Month(1)`: length of the period to output
-- `subperiod=Day(1)`: length of the subperiods used to calculate output, such as a whole day to capture daily fluctuations.
-- `constructor=identity`: Set to CuArray to process with CUDA on your GPU.
+- `series`: any AbstractGeoSeries from [GeoData.jl](http://github.com/rafaqz/GeoData.jl)
+- `tspan`: `AbstractRange` for the timespan to run the models over. 
+  This will be the index oof the output `Ti` dimension.
 
 The output is a GeoArray with the same dimensions as the passed in stack layers, and a Time
 dimension with a length of `nperiods`.
 """
-mapgrowth(; model, kwargs...) =
-    mapgrowth(model; kwargs...)
 mapgrowth(wrapper::ModelWrapper; kwargs...) =
     mapgrowth(wrapper.model; kwargs...)
 mapgrowth(model...; kwargs...) =
     mapgrowth(model; kwargs...)
-mapgrowth(model::Tuple; 
-          series,
-          period=Month(1),
-          nperiods=1,
-          startdate=first(bounds(series, Ti))) = begin
-    println("main")
-    enddate = startdate + period * nperiods
+mapgrowth(model::Tuple; series::AbstractGeoSeries, tspan::AbstractRange) = begin
+    period = step(tspan)
+    nperiods = length(tspan)
+    startdate, enddate = first(tspan), last(tspan)
     required_keys = Tuple(union(keys(model)))
     # Copy only the required keys to a memory-backed stack
     stackbuffer = GeoStack(deepcopy(first(series)); keys=required_keys)
     A = first(values(stackbuffer));
     mask = map(x -> x ? eltype(A)(x) : eltype(A)(NaN), boolmask(A))
 
-    periodstarts = periodstartdates(startdate, period, nperiods)
     # Setup output vector
     # Make a 3 dimensional GeoArray for output, adding the time dimension
     # to init (there should be a function for this in DimensionalData.jl - growdim?
-    ti = Ti(periodstarts; mode=Sampled(Ordered(), Regular(period), Intervals(Start())))
+    ti = Ti(tspan; mode=Sampled(Ordered(), Regular(period), Intervals(Start())))
     output = GeoArray(zeros(size(A)..., nperiods), (dims(A)..., ti);
         refdims=(),
         name="growthrate",
@@ -53,7 +42,7 @@ mapgrowth(model::Tuple;
     println("Running for $(1:nperiods)")
     for p in 1:nperiods
         n = 0
-        periodstart = periodstarts[p]
+        periodstart = tspan[p]
         periodend = periodstart + period
         println("\n", "Processing period between: $periodstart and $periodend")
         # We don't use `Between` as it might unintentionally cut off the
@@ -81,19 +70,24 @@ end
 periodstartdates(startdate, period, nperiods) =
     [startdate + p * period for p in 0:nperiods-1]
 
-@inline combinemodels(models, stackbuffer) = combinemodels((models,), stackbuffer)
-@inline combinemodels(models::Tuple, stackbuffer::AbstractGeoStack) =
-    conditionalrate.(Ref(first(models)), parent(stackbuffer[keys(first(models))])) .+ combinemodels(tail(models), stackbuffer)
-@inline combinemodels(models::Tuple{T}, stackbuffer::AbstractGeoStack) where T =
-    conditionalrate.(Ref(first(models)), parent(stackbuffer[keys(first(models))]))
-@inline combinemodels(models::Tuple, vals::NamedTuple) =
-    conditionalrate.(Ref(first(models)), vals[keys(first(models))]) .+ combinemodels(tail(models), vals)
-@inline combinemodels(models::Tuple{T}, vals::NamedTuple) where T =
-    conditionalrate.(Ref(first(models)), vals[keys(first(models))])
-@inline conditionalrate(l::Layer, val) = 
-    conditionalrate(model(l), unit(l) * val)
-@inline conditionalrate(l::Layer, val::Quantity) = 
-    conditionalrate(model(l), val)
-@inline conditionalrate(model::RateModel, val) = 
-    condition(model, val) ? rate(model, val) : zero(rate(model, val))
+@inline combinemodels(layer, stackbuffer) = combinemodels((layer,), stackbuffer)
+@inline combinemodels(layers::Tuple, stackbuffer::AbstractGeoStack) =
+    conditionalrate.(Ref(first(layers)), parent(stackbuffer[keys(first(layers))])) .+ combinemodels(tail(layers), stackbuffer)
+@inline combinemodels(layers::Tuple{T}, stackbuffer::AbstractGeoStack) where T =
+    conditionalrate.(Ref(first(layers)), parent(stackbuffer[keys(first(layers))]))
+@inline combinemodels(layers::Tuple, vals::NamedTuple) =
+    conditionalrate.(Ref(first(layers)), vals[keys(first(layers))]) .+ combinemodels(tail(layers), vals)
+@inline combinemodels(layers::Tuple{T}, vals::NamedTuple) where T =
+    conditionalrate.(Ref(first(layers)), vals[keys(first(layers))])
 
+
+# Special-case Celcius: some data sets are in °C, but models
+# Can never use °C, so we convert it.
+maybetoK(val) = unit(val) == u"°C" ? val |> K : val
+
+@inline conditionalrate(l::Layer, val) =
+    conditionalrate(model(l), maybetoK(unit(l) * val))
+@inline conditionalrate(l::Layer, val::Unitful.AbstractQuantity) =
+    conditionalrate(model(l), maybetoK(val))
+@inline conditionalrate(model::RateModel, val) =
+    condition(model, val) ? rate(model, val) : zero(rate(model, val))

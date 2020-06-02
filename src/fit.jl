@@ -77,9 +77,9 @@ body!(w, interface)
 """
 manualfit!(wrapper::ModelWrapper, range::NamedTuple{<:Any,<:Tuple{Vararg{<:AbstractVector}}};
            obs=[], kwargs...) =
-    interface!(plotfit, wrapper, (obs, range); kwargs...)
+    interface!(manualfit, wrapper, (obs, range); kwargs...)
 
-plotfit(model, (obs, ranges)) = begin
+manualfit(model, (obs, ranges)) = begin
     predictions = combinemodels(model, ranges)
     p = plot(first(ranges), predictions; label="predicted", legend=false)
     scatter!(p, obs; label="observed")
@@ -116,11 +116,11 @@ body!(w, interface)
 ```
 """
 mapfit!(wrapper::ModelWrapper, modelkwargs; occurrence=[], precomputed=nothing, kwargs...) =
-    interface!(plotmap, wrapper, (modelkwargs, occurrence, precomputed); kwargs...)
+    interface!(mapfit, wrapper, (modelkwargs, occurrence, precomputed); kwargs...)
 
-plotmap(model, (modelkwargs, occurrence, precomputed);
-        window=(Band(1),), levels=10, markercolor=:white, markersize=2.0,
-        clims=(0.0, 0.25), mapkwargs=(), scatterkwargs...) = begin
+mapfit(model, (modelkwargs, occurrence, precomputed);
+       window=(Band(1),), levels=10, markercolor=:white, markersize=2.0,
+       clims=(0.0, 0.25), mapkwargs=(), scatterkwargs...) = begin
     output = mapgrowth(model; modelkwargs...)
     output = isnothing(precomputed) ? output : output .+ precomputed
     p = plot(output[window...]; legend=:none, levels=levels, clims=clims, mapkwargs...)
@@ -138,7 +138,7 @@ interface!(f, wrapper::ModelWrapper, data;
         wrapper.model = Flatten.reconstruct(wrapper.model, params, use, ignore)
         plotobs[] = f(wrapper.model, data; kwargs...)
     end
-    vbox(plotobs, vbox(slider_groups...))
+    vbox(dom"h1"("GrowthMaps.jl $f interface"), plotobs, vbox(slider_groups...))
 end
 
 

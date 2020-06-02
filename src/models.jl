@@ -105,7 +105,7 @@ specified `mortalityrate` for some environmental layer `key`.
 Independent variables must be in the same units as
 """
 @bounds struct LowerStress{T,M} <: AbstractLowerStress
-    threshold::T     | (250, 350)
+    threshold::T     | (0.0, 1.0)
     mortalityrate::M | (-0.5, 0.0)
 end
 
@@ -131,7 +131,7 @@ A [`StressModel`](@ref) where stress occurs above a `threshold` at the
 specified `mortalityrate`, for some environmental layer `key`.
 """
 @bounds struct UpperStress{T,M} <: AbstractUpperStress
-    threshold::T     | (250, 350)
+    threshold::T     | (0.0, 1.0)
     mortalityrate::M | (-0.5, 0.0)
 end
 
@@ -144,6 +144,12 @@ end
     threshold::T     | (0.0, 1.0)
     mortalityrate::M | (-0.5, 0.0)
 end
+
+@bounds struct WetStress{T,M} <: AbstractUpperStress
+    threshold::T     | (0.0, 1.0)
+    mortalityrate::M | (-0.5, 0.0)
+end
+
 
 """
 SchoolfieldIntrinsicGrowth(p, ΔH_A, ΔH_L, ΔH_H, Thalf_L, Thalf_H, T_ref, R)
