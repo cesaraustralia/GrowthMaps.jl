@@ -123,9 +123,15 @@ mapfit(model, (modelkwargs, occurrence, precomputed);
        clims=(0.0, 0.25), mapkwargs=(), scatterkwargs...) = begin
     output = mapgrowth(model; modelkwargs...)
     output = isnothing(precomputed) ? output : output .+ precomputed
-    p = plot(output[window...]; legend=:none, levels=levels, clims=clims, mapkwargs...)
-    for t in 1:length(dims(output, Ti()))
-        scatter!(occurrence; subplot=t, markercolor=markercolor, markersize=markersize, scatterkwargs...)
+    windowed = output[window...]
+    p = plot(windowed; legend=:none, levels=levels, clims=clims, mapkwargs...)
+    scatter(; tkwarg...) = scatter!(occurrence; tkwarg..., markercolor=markercolor, markersize=markersize, scatterkwargs...)
+    if hasdim(windowed, Ti())
+        for t in 1:length(dims(windowed, Ti()))
+            scatter(; subplot=t)
+        end
+    else
+        scatter()
     end
     p
 end
