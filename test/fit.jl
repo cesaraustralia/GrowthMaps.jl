@@ -22,10 +22,9 @@ obs = [(10.0, 0.0), (20.0, 0.2), (30.0, 0.1), (40.0, 0.0)]
 end
 
 @testset "Manual fit interface" begin
-    range = NamedTuple{(:temp,)}((0°C:1°C:45°C,))
+    range = NamedTuple{(:temp,)}(((0.0°C:1.0K:45.0°C),))
     interface = manualfit!(wrapper, range; obs=obs);
 end
-
 
 @testset "Map fit interface" begin
     ## Set up series data
@@ -34,8 +33,7 @@ end
 
     stacks = [GeoStack(NamedTuple{(:temp,)}((tempdata[i],))) for i in 1:length(tempdata)]
     timedim = (Ti((1:1:5)hr; mode=Sampled(; span=Regular(1hr))),)
-    modelkwargs = (series=GeoSeries(stacks, timedim), period=2hr, nperiods=3, startdate=1hr)
-    
+    modelkwargs = (series=GeoSeries(stacks, timedim), tspan=1hr:1hr:5hr)
     mapfit!(wrapper, modelkwargs; occurrence=[(1, 2), (9, 10)]);
 end
 
