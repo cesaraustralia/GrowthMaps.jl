@@ -21,8 +21,8 @@ jobs:
       before:
       script:
         - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-        - julia --project=docs/ -e 'using Pkg; Pkg.add(PackageSpec(url="https://github.com/rafaqz/GeoData.jl"))'
-        - julia --project=docs/ -e 'using Pkg; Pkg.instantiate(); Pkg.develop(PackageSpec(path=pwd()));'
+        - julia -e 'using Pkg; Pkg.add(PackageSpec(url="https://github.com/rafaqz/GeoData.jl"))'
+        - julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
         - julia --project=docs/ --color=yes docs/make.jl
       name: "HTML"
       after_success: skip
