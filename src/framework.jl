@@ -19,7 +19,7 @@ mapgrowth(wrapper::ModelWrapper; kwargs...) =
     mapgrowth(wrapper.model; kwargs...)
 mapgrowth(model...; kwargs...) =
     mapgrowth(model; kwargs...)
-mapgrowth(model::Tuple; series::AbstractGeoSeries, tspan::AbstractRange) = begin
+mapgrowth(model::Tuple; series::AbstractGeoSeries, tspan::AbstractRange, arraytype=Array) = begin
     period = step(tspan)
     nperiods = length(tspan)
     startdate, enddate = first(tspan), last(tspan)
@@ -27,16 +27,17 @@ mapgrowth(model::Tuple; series::AbstractGeoSeries, tspan::AbstractRange) = begin
     # Copy only the required keys to a memory-backed stack
     stackbuffer = GeoStack(deepcopy(first(series)); keys=required_keys)
     A = first(values(stackbuffer));
-    mask = map(x -> x ? eltype(A)(x) : eltype(A)(NaN), boolmask(A))
-
+    missingval = eltype(A)(NaN)
+    # Replace false with NaN
+    mask = arraytype(parent(map(x -> x ? eltype(A)(x) : missingval, boolmask(A))))
     # Setup output vector
     # Make a 3 dimensional GeoArray for output, adding the time dimension
     # to init (there should be a function for this in DimensionalData.jl - growdim?
     ti = Ti(tspan; mode=Sampled(Ordered(), Regular(period), Intervals(Start())))
-    output = GeoArray(zeros(size(A)..., nperiods), (dims(A)..., ti);
-        refdims=(),
+    output = GeoArray(
+        arraytype(zeros(size(A)..., nperiods)), (dims(A)..., ti);
         name="growthrate",
-        missingval=eltype(A)(NaN)
+        missingval=missingval,
     )
 
     println("Running for $(1:nperiods)")
@@ -57,10 +58,10 @@ mapgrowth(model::Tuple; series::AbstractGeoSeries, tspan::AbstractRange) = begin
             n += 1
         end
         if n > 0
-            output[Ti(p)] .*= parent(mask) ./ n
+            output[Ti(p)] .*= mask ./ n
         else
             @warn ("No files found for the $period period starting $periodstart")
-            output[Ti(p)] .*= parent(mask)
+            output[Ti(p)] .*= mask
         end
     end
 
