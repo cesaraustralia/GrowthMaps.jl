@@ -144,7 +144,7 @@ interface!(f, wrapper::ModelWrapper, data;
         wrapper.model = Flatten.reconstruct(wrapper.model, params, use, ignore)
         plotobs[] = f(wrapper.model, data; kwargs...)
     end
-    vbox(dom"h1"("GrowthMaps.jl $f interface"), plotobs, vbox(slider_groups...))
+    vbox(dom"h1"("GrowthMaps.jl $f"), plotobs, vbox(slider_groups...))
 end
 
 
