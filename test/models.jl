@@ -1,6 +1,6 @@
 using GrowthMaps, GeoData, Unitful, Test
 using Unitful: °C, K, hr, d, mol, cal
-using GrowthMaps: rate, condition, conditionalrate, combinemodels
+using GrowthMaps: rate, condition, conditionalrate, combinelayers
 
 dimz = Lat((10, 20)), Lon((100, 130))
 
@@ -69,10 +69,10 @@ growth = Layer(:temp, K, SchoolfieldIntrinsicGrowth(p, ΔH_A, ΔH_L, T_halfL, Δ
 end
 
 
-@testset "Combined models" begin
+@testset "Combined layers" begin
     stack = NamedTuple{(:lower, :upper, :temp)}((lowerdata, upperdata, tempdata))
-    @test combinemodels((lower, upper), stack) == [-10. -7. -4.
+    @test combinelayers((lower, upper), stack) == [-10. -7. -4.
                                                    -1.   0.  0.]
-    combinemodels((growth, lower, upper), stack)
+    combinelayers((growth, lower, upper), stack)
 end
 

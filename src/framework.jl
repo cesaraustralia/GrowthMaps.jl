@@ -1,15 +1,15 @@
 """
-    mapgrowth(models; series::AbstractGeoSeries, tspan::AbstractRange)
+    mapgrowth(layers; series::AbstractGeoSeries, tspan::AbstractRange)
 
-Combine growth rates accross rate models and subperiods for all required periods.
+Combine growth rates accross layers and subperiods for all required periods.
 
 ## Arguments
-- `models`: `ModelWrapper` or Tuple of `Layer` components, 
+- `layers`: `ModelWrapper` or Tuple of `Layer` components, 
   which can also be passed in as individual args.
 
 ## Keyword Arguments
 - `series`: any AbstractGeoSeries from [GeoData.jl](http://github.com/rafaqz/GeoData.jl)
-- `tspan`: `AbstractRange` for the timespan to run the models over. 
+- `tspan`: `AbstractRange` for the timespan to run the layers for. 
   This will be the index oof the output `Ti` dimension.
 
 The output is a GeoArray with the same dimensions as the passed in stack layers, and a Time
@@ -53,7 +53,7 @@ mapgrowth(model::Tuple; series::AbstractGeoSeries, tspan::AbstractRange) = begin
             println("    ", val(dims(subseries, Ti))[t])
             # Copy the arrays we need from disk to the buffer stack
             copy!(stackbuffer, subseries[t])
-            output[Ti(p)] .+= combinemodels(model, stackbuffer)
+            output[Ti(p)] .+= combinelayers(model, stackbuffer)
             n += 1
         end
         if n > 0
@@ -70,18 +70,18 @@ end
 periodstartdates(startdate, period, nperiods) =
     [startdate + p * period for p in 0:nperiods-1]
 
-@inline combinemodels(layer, stackbuffer) = combinemodels((layer,), stackbuffer)
-@inline combinemodels(layers::Tuple, stackbuffer::AbstractGeoStack) =
-    conditionalrate.(Ref(first(layers)), parent(stackbuffer[keys(first(layers))])) .+ combinemodels(tail(layers), stackbuffer)
-@inline combinemodels(layers::Tuple{T}, stackbuffer::AbstractGeoStack) where T =
+@inline combinelayers(layer, stackbuffer) = combinelayers((layer,), stackbuffer)
+@inline combinelayers(layers::Tuple, stackbuffer::AbstractGeoStack) =
+    conditionalrate.(Ref(first(layers)), parent(stackbuffer[keys(first(layers))])) .+ combinelayers(tail(layers), stackbuffer)
+@inline combinelayers(layers::Tuple{T}, stackbuffer::AbstractGeoStack) where T =
     conditionalrate.(Ref(first(layers)), parent(stackbuffer[keys(first(layers))]))
-@inline combinemodels(layers::Tuple, vals::NamedTuple) =
-    conditionalrate.(Ref(first(layers)), vals[keys(first(layers))]) .+ combinemodels(tail(layers), vals)
-@inline combinemodels(layers::Tuple{T}, vals::NamedTuple) where T =
+@inline combinelayers(layers::Tuple, vals::NamedTuple) =
+    conditionalrate.(Ref(first(layers)), vals[keys(first(layers))]) .+ combinelayers(tail(layers), vals)
+@inline combinelayers(layers::Tuple{T}, vals::NamedTuple) where T =
     conditionalrate.(Ref(first(layers)), vals[keys(first(layers))])
 
 
-# Special-case Celcius: some data sets are in °C, but models
+# Special-case Celcius: some data sets are in °C, but layers
 # Can never use °C, so we convert it.
 maybetoK(val) = unit(val) == u"°C" ? val |> K : val
 

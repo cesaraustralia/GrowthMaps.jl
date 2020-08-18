@@ -1,6 +1,6 @@
 using GrowthMaps, GeoData, Unitful, Test, Plots
 using Unitful: °C, K, hr, d, mol, cal
-using GrowthMaps: rate, condition, conditionalrate, combinemodels
+using GrowthMaps: rate, condition, conditionalrate
 
 #= This file just tests that the fitting routines run, not
 that they work, which is difficult with Interact.jl. =#

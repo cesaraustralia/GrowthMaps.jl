@@ -80,7 +80,7 @@ manualfit!(wrapper::ModelWrapper, range::NamedTuple{<:Any,<:Tuple{Vararg{<:Abstr
     interface!(manualfit, wrapper, (obs, range); kwargs...)
 
 manualfit(model, (obs, ranges)) = begin
-    predictions = combinemodels(model, ranges)
+    predictions = combinelayers(model, ranges)
     p = plot(first(ranges), predictions; label="predicted", legend=false)
     scatter!(p, obs; label="observed")
     p
