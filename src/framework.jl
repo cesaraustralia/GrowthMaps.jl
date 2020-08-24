@@ -4,12 +4,12 @@
 Combine growth rates accross layers and subperiods for all required periods.
 
 ## Arguments
-- `layers`: `ModelWrapper` or Tuple of `Layer` components, 
+- `layers`: `ModelWrapper` or Tuple of `Layer` components,
   which can also be passed in as individual args.
 
 ## Keyword Arguments
 - `series`: any AbstractGeoSeries from [GeoData.jl](http://github.com/rafaqz/GeoData.jl)
-- `tspan`: `AbstractRange` for the timespan to run the layers for. 
+- `tspan`: `AbstractRange` for the timespan to run the layers for.
   This will be the index oof the output `Ti` dimension.
 
 The output is a GeoArray with the same dimensions as the passed in stack layers, and a Time
@@ -17,19 +17,20 @@ dimension with a length of `nperiods`.
 """
 mapgrowth(wrapper::ModelWrapper; kwargs...) =
     mapgrowth(wrapper.model; kwargs...)
-mapgrowth(model...; kwargs...) =
-    mapgrowth(model; kwargs...)
-mapgrowth(model::Tuple; series::AbstractGeoSeries, tspan::AbstractRange, arraytype=Array) = begin
+mapgrowth(layers...; kwargs...) =
+    mapgrowth(layers; kwargs...)
+mapgrowth(layers::Tuple; series::AbstractGeoSeries, tspan::AbstractRange, arraytype=Array) = begin
     period = step(tspan)
     nperiods = length(tspan)
     startdate, enddate = first(tspan), last(tspan)
-    required_keys = Tuple(union(keys(model)))
+    required_keys = Tuple(union(keys(layers)))
     # Copy only the required keys to a memory-backed stack
-    stackbuffer = GeoStack(deepcopy(first(series)); keys=required_keys)
-    A = first(values(stackbuffer));
+    stack = GeoStack(deepcopy(first(series)); keys=required_keys)
+    A = first(values(stack));
     missingval = eltype(A)(NaN)
     # Replace false with NaN
-    mask = arraytype(parent(map(x -> x ? eltype(A)(x) : missingval, boolmask(A))))
+    mask = map(x -> x ? eltype(A)(x) : missingval, boolmask(A)) |> parent |> arraytype
+    stackbuffer = GeoData.modify(arraytype, stack)
     # Setup output vector
     # Make a 3 dimensional GeoArray for output, adding the time dimension
     # to init (there should be a function for this in DimensionalData.jl - growdim?
@@ -54,7 +55,7 @@ mapgrowth(model::Tuple; series::AbstractGeoSeries, tspan::AbstractRange, arrayty
             println("    ", val(dims(subseries, Ti))[t])
             # Copy the arrays we need from disk to the buffer stack
             copy!(stackbuffer, subseries[t])
-            output[Ti(p)] .+= combinelayers(model, stackbuffer)
+            output[Ti(p)] .+= combinelayers(layers, stackbuffer)
             n += 1
         end
         if n > 0
@@ -65,7 +66,8 @@ mapgrowth(model::Tuple; series::AbstractGeoSeries, tspan::AbstractRange, arrayty
         end
     end
 
-    output
+    # Return a GeoArray wrapping a regular Array, not arraytype
+    rebuild(output, Array(parent(output)))
 end
 
 periodstartdates(startdate, period, nperiods) =

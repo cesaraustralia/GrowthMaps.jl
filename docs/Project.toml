@@ -2,7 +2,6 @@
 ArchGDAL = "c9ce4bd3-c3d5-55b8-8973-c0e20141b8c3"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 GeoData = "9b6fcbb8-86d6-11e9-1ce7-23a6bb139a78"
-GrowthMaps = "a252ced4-3752-11e9-0615-256422162c4d"
 IJulia = "7073ff75-c697-5162-941a-fcdaad2a7d2a"
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 NCDatasets = "85f8d34a-cbdd-5861-8df4-14fed0d494ab"
