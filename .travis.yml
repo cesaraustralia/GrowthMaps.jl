@@ -16,23 +16,16 @@ jobs:
   fast_finish: true
   include:
     - stage: "Documentation"
-      julia: 1.0
+      julia: 1
       os: linux
-      before:
       script:
-        - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-        - julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
+        - julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); 
+                                    Pkg.instantiate()'
         - julia --project=docs/ --color=yes docs/make.jl
       name: "HTML"
       after_success: skip
-  services: docker
 
 notifications:
   email: false
-
-script:
-  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-  - julia -e 'using Pkg; Pkg.add(PackageSpec(url="https://github.com/rafaqz/GeoData.jl"))'
-  - julia -e 'using Pkg; Pkg.build(); Pkg.test(coverage=true)'
 
 codecov: true
