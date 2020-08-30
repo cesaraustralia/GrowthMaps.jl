@@ -1,6 +1,6 @@
 using Documenter, GrowthMaps, Weave, IJulia
 
-basedir = @__DIR__
+basedir = dirname(@__FILE__)
 
 example = joinpath(basedir, "src/example.jmd")
 

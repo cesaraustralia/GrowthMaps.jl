@@ -25,7 +25,7 @@ using GrowthMaps, Plots, Unitful, UnitfulRecipes, Dates
 using GeoData, ArchGDAL, NCDatasets
 using CSV, DataFrames
 using Unitful: °C, K, cal, mol
-basedir = joinpath(dirname(Base.pathof(GrowthMaps)), "../docs")
+basedir = joinpath(dirname(@__FILE__), "../")
 ```
 
 
@@ -248,7 +248,7 @@ we'll first load them from a CSV file:
 ```julia; results="hidden"
 csvurl = "https://raw.githubusercontent.com/cesaraustralia/GrowthMaps.jl/data/Oersted_occurrence.csv"
 csvfilename = joinpath(basedir, "Oersted_occurrence.csv")
-isfile(csvfilename) || download(joinpath(csvurl, csvfilename))
+isfile(csvfilename) || download(csvurl, csvfilename)
 ```
 
 Then scatter them on a map:
