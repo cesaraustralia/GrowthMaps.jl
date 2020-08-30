@@ -12,13 +12,13 @@ mkpath(joinpath(basedir, "build/assets"))
 mkpath.((notebookdir, pdfdir))
 
 # Generate examples pdf
-weave(example, out_path=pdfdir, doctype="pandoc2pdf")
+# weave(example, out_path=pdfdir, doctype="pandoc2pdf")
 
 # Generate examples markdown and images
 weave(example, out_path=mdpath, doctype="github")
 
 # Generate examples notebook
-convert_doc(example, joinpath(notebookdir, "example.ipynb"))
+# convert_doc(example, joinpath(notebookdir, "example.ipynb"))
 
 # Generate HTML docs
 makedocs(
