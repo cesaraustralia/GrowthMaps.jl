@@ -1,6 +1,6 @@
 name = "GrowthMaps"
 uuid = "a252ced4-3752-11e9-0615-256422162c4d"
-authors = ["Rafael Schouten <rafaelschouten@gmail.com>"]
+authors = ["Rafael Schouten", "James Maino"]
 version = "0.1.0"
 
 [deps]
