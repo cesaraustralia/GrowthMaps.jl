@@ -20,7 +20,7 @@ to use atom with the "uber-juno" and "language-weave" plugins.
 
 These packages take care of loading and plotting data, and handling sci units and dates.
 
-```julia; results="markdown"
+```julia; results="hidden"
 using GrowthMaps, Plots, Unitful, UnitfulRecipes, Dates
 using GeoData, ArchGDAL, NCDatasets
 using CSV, DataFrames
@@ -37,7 +37,7 @@ Schoolfield (1981).
 When defining model components, the first parameter is a `:symbol` for the
 required raster layer in the source data.
 
-```julia; results="markdown"
+```julia; results="hidden"
 p = 3e-01
 ΔH_A = 3e4cal/mol
 ΔH_L = -1e5cal/mol
@@ -53,7 +53,7 @@ growth = Layer(:surface_temp, K, growthmodel)
 If these are only estimated parameters, We can fit the model to a a dataset of growth
 rate and temperature. First extract our independent and dependent variables from the example CSV:
 
-```julia; results="markdown"
+```julia; results="hidden"
 mkpath(joinpath(basedir, "build"))
 obsdata = CSV.File(joinpath(basedir, "swd_ecophys_data.csv"), select=[:x_value, :y_value, :y_key]) |> DataFrame
 obsdata = filter(d -> d.y_key == "r_m", obsdata) |> dropmissing
@@ -63,7 +63,7 @@ obsdata = filter(d -> d.y_key == "r_m", obsdata) |> dropmissing
 Then extract the required data colummns, and convert temperature values from
 unitless Celcius to explit Kelvins, using Unitful.jl:
 
-```julia; results="markdown"
+```julia; results="hidden"
 obsrate = obsdata.y_value
 obstemp = obsdata.x_value * °C .|> K
 obs = collect(zip(obstemp, obsrate))
@@ -74,13 +74,13 @@ Now we can fit the model. The `fitrate` function provides an easy way to fit the
 models in GrowthMaps or your own custom `RateModel`s, using the LsqFit.jl
 package:
 
-```julia; results="markdown"
+```julia; results="hidden"
 fittedgrowth = fit(growth, obs)
 ```
 
 Now plot the fit against the data:
 
-```julia; results="markdown"
+```julia; results="hidden"
 temprange = (270.0:0.1:310.0)K
 p = plot(x -> GrowthMaps.rate(fittedgrowth, x), temprange; label="fitted")
 scatter!(p, obs; label="observed ")
@@ -93,7 +93,7 @@ We parametrise the model over the same temperature range that we are plotting,
 using the :surface_temp key that the model requires:
 
 
-```julia; results="markdown"
+```julia; results="hidden"
 wrapper = ModelWrapper(fittedgrowth)
 tempdata=(surface_temp=temprange,)
 manualfit!(wrapper, tempdata; obs=obs)
@@ -102,7 +102,7 @@ manualfit!(wrapper, tempdata; obs=obs)
 If you are happy with the result, you we can update extract the manual fit
 to use to generate our growth rate maps:
 
-```julia; results="markdown"
+```julia; results="hidden"
 fittedgrowth = wrapper.model
 ```
 
@@ -117,7 +117,7 @@ But downloading the dataset takes too long for an example.
 Instead we will download and unzip some lower resolution monthly
 data to use in the model:
 
-```julia; results="markdown"
+```julia; results="hidden"
 dataurl = "https://media.githubusercontent.com/media/cesaraustralia/GrowthMaps.jl/data/SMAP_aggregated27km.zip"
 zipfilepath = joinpath(basedir, "SMAP_aggregated27km.zip")
 unzippedfolder = joinpath(basedir, "SMAP_aggregated27km")
@@ -144,7 +144,7 @@ GeoData.jl stacks to load lazily from disk while running `mapgrowth`.
 The beauty of this approach is that we can use a lot of different source file
 types and folder configurations without converting them or running out of RAM.
 
-```julia; results="markdown"
+```julia; results="hidden"
 function makestack(i)
     GDALstack((land_fraction_wilting=wilting_paths[i],
                surface_temp=surface_temp_paths[i]);
@@ -159,7 +159,7 @@ tiffseries = GeoSeries(stacks, (timedim,))
 
 We can plot a layer from a file at some date in the series:
 
-```julia; results="markdown"
+```julia; results="hidden"
 tiffseries[Ti(Near(DateTime(2016, 2)))][:surface_temp] |> plot
 ```
 
@@ -177,7 +177,7 @@ tspan=DateTime(2016, 1):Month(1):DateTime(2016, 12)
 
 Then to start, we'll run a simple model that only calculates growth rate.
 
-```julia; results="markdown"
+```julia; results="hidden"
 output = mapgrowth(fittedgrowth;
   series=tiffseries,
   tspan=tspan,
@@ -186,7 +186,7 @@ output = mapgrowth(fittedgrowth;
 
 Then plot the results:
 
-```julia; results="markdown"
+```julia; results="hidden"
 output[Ti(1)] |> plot
 ```
 
@@ -203,7 +203,7 @@ We will define stress models for cold, heat and wilt stress.
 As SWD live on and around plants, we use the proportion of plants
 wilting as an indicater of stress induced by lack of moisture.
 
-```julia; results="markdown"
+```julia; results="hidden"
 coldthresh = 7.0°C |> K  # Enriquez2017
 coldmort = -log(1.00) * K^-1
 coldstress = Layer(:surface_temp, K, ColdStress(coldthresh, coldmort))
@@ -220,7 +220,7 @@ wiltstress = Layer(:land_fraction_wilting, WiltStress(wiltthresh, wiltmort));
 To build a more complex model, we can chain components together
 in a tuple, and again, run and plot them:
 
-```julia; results="markdown"
+```julia; results="hidden"
 output = mapgrowth(fittedgrowth, heatstress;
     series=tiffseries,
     tspan=tspan,
@@ -231,7 +231,7 @@ output[Ti(1)] |> plot
 That looks better. There are negative growth rates in hot regions.
 Now lets run a full model with growth and three stressors:
 
-```julia; results="markdown"
+```julia; results="hidden"
 output = mapgrowth(fittedgrowth, coldstress, heatstress, wiltstress;
     series=tiffseries,
     tspan=tspan,
@@ -245,7 +245,7 @@ output[Ti(1)] |> plot
 To compare out simulation with observations data,
 we'll first load them from a CSV file:
 
-```julia; results="markdown"
+```julia; results="hidden"
 csvurl = "https://raw.githubusercontent.com/cesaraustralia/GrowthMaps.jl/data/Oersted_occurrence.csv"
 csvfilename = joinpath(basedir, "Oersted_occurrence.csv")
 isfile(csvfilename) || download(csvurl, csvfilename)
@@ -253,7 +253,7 @@ isfile(csvfilename) || download(csvurl, csvfilename)
 
 Then scatter them on a map:
 
-```julia; results="markdown"
+```julia; results="hidden"
 obs = CSV.File(csvfilename)
 occurrence = collect(zip(obs.Longitude, obs.Latitude))
 p = plot(output[Ti(1)])
@@ -274,7 +274,7 @@ Large values will look pixelated but will run fast.
 
 `Center()` simply takes the central cell. `Statistics.mean` would take the mean value.
 
-```julia; results="markdown"
+```julia; results="hidden"
 agg = 8
 aggseries = GeoData.aggregate(Center(), tiffseries, (Lon(agg), Lat(agg)))
 ```
@@ -284,7 +284,7 @@ we don't want to fit manually, which simplifies the interfaces and helps perform
 Seeing we allready fit the growth response to empiracle data, lets just fit
 the stress responses to the map:
 
-```julia; results="markdown"
+```julia; results="hidden"
 modelkwargs = (series=aggseries, tspan=tspan)
 precomputed = mapgrowth(fittedgrowth; modelkwargs...)
 ```
@@ -296,7 +296,7 @@ DimensionalData.jl/GeoData.jl `Dimension`s and `Selector`s. Here we only plot
 the first time: but you can select any/multiple, and select them with
 `Near(DateTime(2016,2))` or similar.
 
-```julia; results="markdown"
+```julia; results="hidden"
 wrapper = ModelWrapper(wiltstress, coldstress, heatstress)
 throttle = 0.2
 interface = mapfit!(wrapper, modelkwargs;
@@ -311,7 +311,7 @@ interface = mapfit!(wrapper, modelkwargs;
 ```
 In atom, this will show the interface in the plot pane:
 
-```julia; results="markdown"
+```julia; results="hidden"
 display(interface)
 ```
 
@@ -325,14 +325,14 @@ body!(w, interface)
 
 And get the updated model components from the wrapper:
 
-```julia; results="markdown"
+```julia; results="hidden"
 wiltstress, coldstress, heatstress = wrapper.model
 ```
 
 Now we will put together decent population growth maps
 using the higher resolutions data, and a monthly tiestep:
 
-```julia; results="markdown"
+```julia; results="hidden"
 output = mapgrowth(fittedgrowth, wiltstress, coldstress, heatstress;
     series=tiffseries,
     tspan=tspan,
@@ -343,7 +343,7 @@ plot(output[Ti(1:3:12)]; axis=false)
 This output is ready to use for projecting growthrates, or in a dispersal
 simulation using Dispersal.jl. Lets save it as a NetCDF file using GeoData.jl:
 
-```julia; results="markdown"
+```julia; results="hidden"
 span(output, Ti)
 savepath = joinpath(basedir, "growthrates.ncd")
 write(savepath, NCDarray, output)
@@ -351,7 +351,7 @@ write(savepath, NCDarray, output)
 
 We can load it again with:
 
-```julia; results="markdown"
+```julia; results="hidden"
 ncarray = NCDarray(savepath)
 plot(ncarray[Ti(1)])
 ```
