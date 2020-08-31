@@ -22,7 +22,7 @@ For data input, this package leverages
 environmental data from many different sources, loaded lazily in sequence to
 minimise memory use. These can also be loaded and run on a GPU.
 
-See the [`Examples`](https://cesaraustralia.github.io/GrowthMaps.jl/docs/src/examples)
+See the [`Examples`](https://cesaraustralia.github.io/GrowthMaps.jl/dev/example/)
 section in the documentation to get started.
 
 ## Live Interfaces
