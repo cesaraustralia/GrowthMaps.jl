@@ -23,7 +23,9 @@ environmental data from many different sources, loaded lazily in sequence to
 minimise memory use. These can also be loaded and run on a GPU.
 
 See the [`Examples`](https://cesaraustralia.github.io/GrowthMaps.jl/dev/example/)
-section in the documentation to get started, or work through the 
+section in the documentation to get started. You can also work through the 
+[example.jmd](https://github.com/cesaraustralia/GrowthMaps.jl/blob/master/docs/src/example.jmd) in atom
+with the (language-weave plugin) or the
 [notebook](https://github.com/cesaraustralia/GrowthMaps.jl/blob/gh-pages/dev/notebook/example.ipynb).
 
 ## Live Interfaces
