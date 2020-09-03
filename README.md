@@ -60,13 +60,14 @@ tspan = DateTime(2016, 1):Month(1):DateTime(2016, 12)
 # Use and Nvidia GPU for computations
 arraytype = CuArray
 
+# Run the model
 output = mapgrowth(growth;
     series=aggseries,
     tspan=tspan,
     arraytype=arraytyps,
 )
 
-# Plot the first tii
+# Plot the first timestep
 output[Ti(1)] |> plot
 ```
 
