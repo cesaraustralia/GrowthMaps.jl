@@ -92,9 +92,8 @@ condition(m, x) = true
 
 abstract type AbstractLowerStress <: StressModel end
 
-# TODO set units in the model, this is a temporary hack
-@inline condition(m::AbstractLowerStress, x) = x < m.threshold
 @inline rate(m::AbstractLowerStress, x) = (m.threshold - x) * m.mortalityrate
+@inline condition(m::AbstractLowerStress, x) = x < m.threshold
 
 """
     LowerStress(key::Symbol, threshold, mortalityrate)
