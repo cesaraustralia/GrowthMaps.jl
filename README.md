@@ -5,8 +5,8 @@
 [![Build Status](https://travis-ci.org/cesaraustralia/GrowthMaps.jl.svg?branch=master)](https://travis-ci.org/cesaraustralia/GrowthMaps.jl)
 [![codecov.io](http://codecov.io/github/cesaraustralia/GrowthMaps.jl/coverage.svg?branch=master)](http://codecov.io/github/cesaraustralia/GrowthMaps.jl?branch=master)
 
-GrowthMaps.jl produces gridded growth rates from gridded environmental data and
-process with growth and stress models, following the method outlined in Maino et
+GrowthMaps.jl produces gridded growth rates from environmental data, by processing 
+them with growth and stress models, following the method outlined in Maino et
 al, _"Forecasting the potential distribution of the invasive vegetable leafminer
 using ‘top-down’ and ‘bottom-up’ models"_ (in press). 
 
@@ -17,10 +17,6 @@ combined arbitrarily.
 
 A primary use-case for GrowthMaps layers is in for calculating growth-rates for 
 ![Dispersal.jl](https://github.com/cesaraustralia/Dispersal.jl).
-
-
-
-![GrowthMaps output](https://github.com/cesaraustralia/GrowthMaps.jl/blob/gh-pages/dev/figures/example_19_1.png)
 
 For data input, this package leverages
 [`GeoData.jl`](http://github.com/rafaqz/GeoData.jl) to import stacks of
@@ -47,8 +43,8 @@ growthmodel = SchoolfieldIntrinsicGrowth(p, ΔH_A, ΔH_L, Thalf_L, ΔH_H, Thalf_
 growth = Layer(:surface_temp, K, growthmodel)
 ```
 
-Now we will use GeoData.jl to load a series of SMAP files lazily, 
-and GrowthMaps.jl will load them to an Nvida GPU just in time for processing:
+Now we will use GeoData.jl to load a series of [SMAP](https://smap.jpl.nasa.gov/) 
+files lazily, and GrowthMaps.jl will load them to an Nvida GPU just in time for processing:
 
 ```julia
 
@@ -71,10 +67,9 @@ output = mapgrowth(growth;
 output[Ti(1)] |> plot
 ```
 
-GrowthMaps.jl can run this growth model over thousands 
-of HDF5 files in minutes, on a regular desktop with a GPU,
-although a CPU alone is not too much slower.
-
+GrowthMaps.jl can run this growth model over thousands of HDF5 files in minutes, 
+on a regular desktop with a GPU, although a CPU alone is not too much slower. 
+You can also use an memory-backed arrays or NetCDF or GDAL files in `mapgrowth`.
 
 The models can be chained together and run over multiple data layers simultaneously. 
 
