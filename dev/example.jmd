@@ -1,6 +1,6 @@
 # GrowthMaps.jl example
 
-_Rafael Schouten and James Maino_  
+_Rafael Schouten and James Maino_
 
 
 In this example we will calculate the expected population growth rates of
@@ -289,7 +289,7 @@ modelkwargs = (series=aggseries, tspan=tspan)
 precomputed = mapgrowth(fittedgrowth; modelkwargs...)
 ```
 
-Then fit the other components. `throttle` will dictate how fast the interface 
+Then fit the other components. `throttle` will dictate how fast the interface
 updates. Make it larger on a slow machine, smaller on a faster one.
 The `window` argument lets us select a window of the output to view, using
 DimensionalData.jl/GeoData.jl `Dimension`s and `Selector`s. Here we only plot
@@ -344,8 +344,8 @@ This output is ready to use for projecting growthrates, or in a dispersal
 simulation using Dispersal.jl. Lets save it as a NetCDF file using GeoData.jl:
 
 ```julia; results="hidden"
-span(output, Ti)
-savepath = joinpath(basedir, "growthrates.ncd")
+savedir = joinpath(basedir, "build") |> mkpath
+savepath = joinpath(savedir, "growthrates.ncd")
 write(savepath, NCDarray, output)
 ```
 
