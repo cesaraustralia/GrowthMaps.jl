@@ -5,16 +5,15 @@
 [![Build Status](https://travis-ci.org/cesaraustralia/GrowthMaps.jl.svg?branch=master)](https://travis-ci.org/cesaraustralia/GrowthMaps.jl)
 [![codecov.io](http://codecov.io/github/cesaraustralia/GrowthMaps.jl/coverage.svg?branch=master)](http://codecov.io/github/cesaraustralia/GrowthMaps.jl?branch=master)
 
-GrowthMaps.jl produces gridded growth rates from environmental data, by processing
-them with growth and stress models, following the method outlined in Maino et
+GrowthMaps.jl produces gridded population level growth rates from environmental data, 
+and fitted growth and stress models, following the method outlined in Maino et
 al, _"Forecasting the potential distribution of the invasive vegetable leafminer
 using ‘top-down’ and ‘bottom-up’ models"_
 [(in press)](https://www.biorxiv.org/content/10.1101/866996v1).
 
-They are intended to be (and already practically used as) a replacement for CLIMEX and
-similar tools. Different from CLIMEX is that results arrays have units of growth/time.
-Another useful property of these models is that growth rate layers can be added and
-combined arbitrarily.
+GrowthMaps.jl is a replacement for CLIMEX and similar tools. Different from CLIMEX is that 
+results arrays have units of growth/time. Another useful property of these models is that growth 
+rate layers can be added and combined arbitrarily.
 
 A primary use-case for GrowthMaps layers is in for calculating growth-rates for
 ![Dispersal.jl](https://github.com/cesaraustralia/Dispersal.jl).
@@ -25,8 +24,7 @@ minimise memory, using the `GeoSeries` abstraction, that can hold "SMAP" HDF5 fi
 NetCDFs, or `GeoStack`s of `tif` or other GDAL source files, or simply memory-backed
 arrays. These data sources can be used interchangeably.
 
-Computations can easily be run on GPUs, for example with `arraytype=CuArray`
-to use CUDA for Nvidia GPUs.
+Computations can be run on GPUs, for example with `arraytype=CuArray` to use CUDA for Nvidia GPUs.
 
 ## Example
 
@@ -71,13 +69,10 @@ output[Ti(1:3:12)] |> plot
 GrowthMaps.jl is fast.
 
 As a rough benchmark, running a model using 3 3800*1600 layers from 3000 SMAP
-files on a 7200rpm drive takes under 15 minutes on a desktop with a good GPU, 
-like a GeForce 1080. The computation time is nearly irrelevant, running ten similar 
+files on a M.2. drive takes under 7 minutes on a desktop with a good GPU, 
+like a GeForce 1080. The computation time is trivial, running ten similar 
 models takes essentially the same time as running one model. On a CPU, model run-time 
 becomes more of a factor, but is still fast for a single model.
-
-Additional improvements to the performance of `mapgrowth` may be found
-largely by using solid-state and M.2. drives for data storage.
 
 See the [`Examples`](https://cesaraustralia.github.io/GrowthMaps.jl/dev/example/)
 section in the documentation to get started. You can also work through the
