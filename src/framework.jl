@@ -1,28 +1,39 @@
 """
-    mapgrowth(layers; series::AbstractGeoSeries, tspan::AbstractRange)
+    mapgrowth(models; series::AbstractGeoSeries, tspan::AbstractRange, arraytype=Array) => GeoArray
 
-Combine growth rates accross layers and subperiods for all required periods.
+Combine growth rates and stressors for all layers,
+in all files in each `series` falling in each period of `tspan`.
 
 ## Arguments
-- `layers`: `ModelWrapper` or Tuple of `Layer` components,
-  which can also be passed in as individual args.
+- `models`: a `ModelWrapper`, a `Tuple` or splat of `Layer` components,
+  or a NamedTuple holding multiple `Tuple`/`ModelWrapper` models.
 
 ## Keyword Arguments
 - `series`: any AbstractGeoSeries from [GeoData.jl](http://github.com/rafaqz/GeoData.jl)
 - `tspan`: `AbstractRange` for the timespan to run the layers for.
   This will be the index oof the output `Ti` dimension.
+- `arraytype`: An array constructor to apply to data once it's loaded from disk.
+  The main use case for this is a `GPUArray` such as `CuArray` which will result in all
+  computations happening on the GPU, if you have one.
 
-The output is a GeoArray with the same dimensions as the passed in stack layers, and a Time
-dimension with a length of `nperiods`.
+Using multiple models in a `NamedTuple` can be an order of magnitude faster than
+running models separately -- especially when `arraytype=CuArray` or similar.
+In this configuration, all data required by all layers in all models will be loaded
+from disk only once and copied to the GPU only once. This is useful for doing all kinds 
+of sensitivity analysis and model comparison. 
+
+##  Returns 
+
+A `GeoArray` or `NamedTuple` of `GeoArray`, with the same dimensions as the passed-in 
+stack layers, and an additional `Ti` (time) dimension matching `tspan`.
 """
-mapgrowth(wrapper::ModelWrapper; kwargs...) =
-    mapgrowth(wrapper.model; kwargs...)
-mapgrowth(layers...; kwargs...) =
-    mapgrowth(layers; kwargs...)
-mapgrowth(layers::Tuple; series::AbstractGeoSeries, tspan::AbstractRange, arraytype=Array) = begin
+mapgrowth(wrapper::ModelWrapper; kwargs...) = mapgrowth(wrapper.model; kwargs...)
+mapgrowth(layers...; kwargs...) = mapgrowth(layers; kwargs...)
+mapgrowth(layers::Tuple; kwargs...) = mapgrowth((_default_=layers,); kwargs...)[:_default_]
+mapgrowth(models::NamedTuple; series::AbstractGeoSeries, tspan::AbstractRange, arraytype=Array) = begin
     period = step(tspan); nperiods = length(tspan)
     startdate, enddate = first(tspan), last(tspan)
-    required_keys = Tuple(union(keys(layers)))
+    required_keys = Tuple(union(map(l -> tuple(union(keys(l))), models)...)[1])
 
     # Copy only the required keys to a memory-backed stack
     stack = GeoStack(deepcopy(first(series)); keys=required_keys)
@@ -38,15 +49,17 @@ mapgrowth(layers::Tuple; series::AbstractGeoSeries, tspan::AbstractRange, arrayt
     ti = Ti(tspan; mode=Sampled(Ordered(), Regular(period), Intervals(Start())))
     outdims = (dims(A)..., ti)
     outA = arraytype(zeros(eltype(A), size(A)..., nperiods))
-    output = GeoArray(outA, outdims; name="growthrate", missingval=missingval)
+    outputs = map(models) do m
+        GeoArray(deepcopy(outA), outdims; name="growthrate", missingval=missingval)
+    end
 
-    runperiods!(output, stackbuffer, series, mask, layers, tspan)
+    runperiods!(outputs, stackbuffer, series, mask, models, tspan)
 
     # Return a GeoArray wrapping a regular Array, not arraytype
-    GeoData.modify(Array, output)
+    map(o -> GeoData.modify(Array, o), outputs)
 end
 
-function runperiods!(output, stackbuffer, series, mask, layers, tspan)
+function runperiods!(outputs::NamedTuple, stackbuffer, series, mask, models::NamedTuple, tspan)
     period = step(tspan); nperiods = length(tspan)
     println("Running for $(1:nperiods)")
     for p in 1:nperiods
@@ -57,21 +70,28 @@ function runperiods!(output, stackbuffer, series, mask, layers, tspan)
 
         # We don't use `Between` as it might unintentionally cut off the
         # last time if it partially extends beyond the period.
-        # So we jsut work with time as Points using `Where`.
+        # So we just work with time as Points using `Where`.
         subseries = series[Ti(Where(t -> t >= periodstart && t < periodend))]
         for t in 1:size(subseries, Ti)
-            println("    ", val(dims(subseries, Ti))[t])
+            println("\n    ", val(dims(subseries, Ti))[t])
             # Copy the arrays we need from disk to the buffer stack
             copy!(stackbuffer, subseries[t])
-            # For some reason now this is broken with DD getindex, view is a workaround
-            parent(view(output, Ti(p))) .+= combinelayers(layers, stackbuffer)
+            map(outputs, models, keys(outputs)) do output, model, key
+                length(models) > 1 && println("        For $key")
+                # For some reason now this is broken with DD getindex, view is a workaround
+                parent(view(output, Ti(p))) .+= combinelayers(model, stackbuffer)
+            end
             n += 1
         end
         if n > 0
-            parent(view(output, Ti(p))) .*= mask ./ n
+            map(outputs) do output
+                parent(view(output, Ti(p))) .*= mask ./ n
+            end
         else
             @warn ("No files found for the $period period starting $periodstart")
-            parent(view(output, Ti(p))) .*= mask
+            map(outputs) do output
+                parent(view(output, Ti(p))) .*= mask
+            end
         end
     end
 end
