@@ -5,6 +5,8 @@
 [![Build Status](https://travis-ci.org/cesaraustralia/GrowthMaps.jl.svg?branch=master)](https://travis-ci.org/cesaraustralia/GrowthMaps.jl)
 [![codecov.io](http://codecov.io/github/cesaraustralia/GrowthMaps.jl/coverage.svg?branch=master)](http://codecov.io/github/cesaraustralia/GrowthMaps.jl?branch=master)
 
+![example](https://raw.githubusercontent.com/cesaraustralia/GrowthMaps.jl/gh-pages/dev/figures/example_26_1.png)
+
 GrowthMaps.jl produces gridded population level growth rates from environmental data, 
 and fitted growth and stress models, following the method outlined in Maino et
 al, _"Forecasting the potential distribution of the invasive vegetable leafminer
@@ -16,7 +18,9 @@ results arrays have units of growth/time. Another useful property of these model
 rate layers can be added and combined arbitrarily.
 
 A primary use-case for GrowthMaps layers is in for calculating growth-rates for
-![Dispersal.jl](https://github.com/cesaraustralia/Dispersal.jl).
+![Dispersal.jl](https://github.com/cesaraustralia/Dispersal.jl). This allows heterogeneous
+organism growth rates to influence dispersal patterns, simulating permanent range limits and 
+potential for seasonal range shift.
 
 For data input, this package leverages [`GeoData.jl`](http://github.com/rafaqz/GeoData.jl)
 to import datasets from many different sources. Files are loaded lazily in sequence to
