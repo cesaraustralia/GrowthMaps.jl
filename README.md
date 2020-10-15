@@ -13,9 +13,9 @@ al, _"Forecasting the potential distribution of the invasive vegetable leafminer
 using ‘top-down’ and ‘bottom-up’ models"_
 [(in press)](https://www.biorxiv.org/content/10.1101/866996v1).
 
-GrowthMaps.jl is a replacement for CLIMEX and similar tools. Different from CLIMEX is that 
-results arrays have units of growth/time. Another useful property of these models is that growth 
-rate layers can be added and combined arbitrarily.
+GrowthMaps.jl is an alternative to CLIMEX and similar tools. Its key point of differentiation from
+other methods is that results arrays have units of growth/time. Another useful property of these models 
+is that growth rate layers can be added and combined arbitrarily.
 
 A primary use-case for GrowthMaps layers is in for calculating growth-rates for
 ![Dispersal.jl](https://github.com/cesaraustralia/Dispersal.jl). This allows heterogeneous
