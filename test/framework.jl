@@ -1,4 +1,4 @@
-using GrowthMaps, GeoData, Dates, Test
+using GrowthMaps, GeoData, ModelParameters, Dates, Test
 using Unitful: °C, K, hr, d, mol, cal
 
 @testset "mapgrowth" begin
@@ -8,12 +8,12 @@ using Unitful: °C, K, hr, d, mol, cal
     stressdata = GeoArray.([[1. 2.], [1. 2.],
                             [2. 3.], [3. 4.], [2.5 3.5],
                             [4. 5.], [5. 6.],
-                            [6. 7.], [6. 7.], [6. 7.]], Ref(dimz); name="stress")
+                            [6. 7.], [6. 7.], [6. 7.]], Ref(dimz); name=:stress)
     # TODO set up tempdata
     tempdata = GeoArray.([[270. 280.], [270. 280.],
                           [270. 280.], [270. 280.], [270. 280.],
                           [270. 280.], [270. 280.],
-                          [270. 280.], [270. 280.], [270. 280.]], Ref(dimz); name="tempdata")
+                          [270. 280.], [270. 280.], [270. 280.]], Ref(dimz); name=:tempdata)
 
     # Build a GeoSeries
     stacks = [GeoStack(NamedTuple{(:stress, :temp)}((stressdata[i], tempdata[i]))) for i in 1:length(stressdata)]
@@ -68,8 +68,8 @@ using Unitful: °C, K, hr, d, mol, cal
     @test output[Ti(At(DateTime(2016, 3, 3)))] == [0.0 -0.5 ]
     @test output[Ti(At(DateTime(2016, 4, 3)))] == [-1.0 -2.0]
 
-    # Lower and Uppera, in a ModelWrapper with an extra period
-    output = mapgrowth(ModelWrapper(lower, upper);
+    # Lower and Uppera, in a Model with an extra period
+    output = mapgrowth(Model((lower, upper));
         series=series,
         tspan=DateTime(2016, 1, 3):Month(1):DateTime(2016, 5, 3)
     );
@@ -82,8 +82,9 @@ using Unitful: °C, K, hr, d, mol, cal
     @test output[Ti(At(DateTime(2016, 3, 3)))] == [-0.5 -0.5]
     @test output[Ti(At(DateTime(2016, 4, 3)))] == [-1.0 -2.0]
 
-    @test_logs (:warn,"No files found for the 1 month period starting 2016-05-03T00:00:00") mapgrowth(
-    ModelWrapper((lower, upper));
+    @test_logs (:warn,"No files found for the 1 month period starting 2016-05-03T00:00:00") 
+    mapgrowth(
+        Model((lower, upper));
         series=series,
         tspan=DateTime(2016, 1, 3):Month(1):DateTime(2016, 5, 3)
     );

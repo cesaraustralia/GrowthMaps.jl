@@ -1,17 +1,19 @@
 """
-    mapgrowth(models; series::AbstractGeoSeries, tspan::AbstractRange, arraytype=Array) => GeoArray
+    mapgrowth(model; series::AbstractGeoSeries, tspan::AbstractRange)
+    mapgrowth(layers...; kwargs...)
 
 Combine growth rates and stressors for all layers,
 in all files in each `series` falling in each period of `tspan`.
 
 ## Arguments
-- `models`: a `ModelWrapper`, a `Tuple` or splat of `Layer` components,
-  or a NamedTuple holding multiple `Tuple`/`ModelWrapper` models.
+- `model`: A `Model` or `Tuple` of `Layer` components. 
+  `Layer`s can also be passed in as separate arguments.
 
 ## Keyword Arguments
+
 - `series`: any AbstractGeoSeries from [GeoData.jl](http://github.com/rafaqz/GeoData.jl)
 - `tspan`: `AbstractRange` for the timespan to run the layers for.
-  This will be the index oof the output `Ti` dimension.
+  This will become the `index` values of the output `GeoArray` time-dimension `Ti`.
 - `arraytype`: An array constructor to apply to data once it's loaded from disk.
   The main use case for this is a `GPUArray` such as `CuArray` which will result in all
   computations happening on the GPU, if you have one.
@@ -27,10 +29,11 @@ of sensitivity analysis and model comparison.
 A `GeoArray` or `NamedTuple` of `GeoArray`, with the same dimensions as the passed-in 
 stack layers, and an additional `Ti` (time) dimension matching `tspan`.
 """
-mapgrowth(wrapper::ModelWrapper; kwargs...) = mapgrowth(wrapper.model; kwargs...)
+mapgrowth(model::Model; kwargs...) = mapgrowth(parent(model); kwargs...)
 mapgrowth(layers...; kwargs...) = mapgrowth(layers; kwargs...)
-mapgrowth(layers::Tuple; kwargs...) = mapgrowth((_default_=layers,); kwargs...)[:_default_]
-mapgrowth(models::NamedTuple; series::AbstractGeoSeries, tspan::AbstractRange, arraytype=Array) = begin
+function mapgrowth(layers::Tuple; 
+    series::AbstractGeoSeries, tspan::AbstractRange, arraytype=Array
+)
     period = step(tspan); nperiods = length(tspan)
     startdate, enddate = first(tspan), last(tspan)
     required_keys = Tuple(union(map(l -> tuple(union(keys(l))), models)...)[1])
@@ -49,9 +52,7 @@ mapgrowth(models::NamedTuple; series::AbstractGeoSeries, tspan::AbstractRange, a
     ti = Ti(tspan; mode=Sampled(Ordered(), Regular(period), Intervals(Start())))
     outdims = (dims(A)..., ti)
     outA = arraytype(zeros(eltype(A), size(A)..., nperiods))
-    outputs = map(models) do m
-        GeoArray(deepcopy(outA), outdims; name="growthrate", missingval=missingval)
-    end
+    output = GeoArray(outA, outdims; name=:growthrate, missingval=missingval)
 
     runperiods!(outputs, stackbuffer, series, mask, models, tspan)
 
@@ -111,8 +112,7 @@ end
 # Can never use °C, so we convert it.
 maybetoK(val) = unit(val) == u"°C" ? val |> K : val
 
-@inline conditionalrate(l::Layer, val) =
-    conditionalrate(model(l), maybetoK(unit(l) * val))
+@inline conditionalrate(l::Layer, val) = conditionalrate(model(l), maybetoK(unit(l) * val))
 @inline conditionalrate(l::Layer, val::Unitful.AbstractQuantity) =
     conditionalrate(model(l), maybetoK(val))
 @inline conditionalrate(model::RateModel, val) =

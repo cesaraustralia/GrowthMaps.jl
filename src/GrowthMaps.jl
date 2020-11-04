@@ -5,16 +5,14 @@ module GrowthMaps
 
 using ConstructionBase,
       Dates,
-      FieldMetadata,
-      Flatten,
       GeoData,
+      InteractModels,
       LsqFit,
-      Interact,
+      ModelParameters,
       Plots,
       Unitful,
       UnitfulRecipes
 
-import FieldMetadata: @flattenable, flattenable, @bounds, bounds
 using GeoData: rebuild
 using Unitful: °C, K, R, Units
 using Base: tail
@@ -25,8 +23,7 @@ export RateModel
 
 export GrowthModel, SchoolfieldIntrinsicGrowth
 
-export StressModel, LowerStress, ColdStress, WiltStress, WetStress,
-       UpperStress, HeatStress, MoistureStress
+export StressModel, LowerStress, UpperStress
 
 export Layer, ModelWrapper
 

@@ -1,25 +1,18 @@
-"""
-Passed to an optimiser to facilitate fitting any `RateModel`,
-without boilerplate or methods rewrites.
-"""
-mutable struct ModelWrapper{M}
-    model::M
-end
-ModelWrapper(m::Tuple) = ModelWrapper{typeof(m)}(m)
-ModelWrapper(m...) = ModelWrapper{typeof(m)}(m)
-"""
-Update the model with passed in params, and run [`rate`] over the independent variables.
-"""
-(f::ModelWrapper)(xs, params) =
-    GrowthMaps.conditionalrate.(Ref(reconstruct(f.model, params, Real)), xs)
 
 """
-A `RateModel` conatains the parameters to calculate the contribution of a
+A `RateModel` contains the parameters to calculate the contribution of a
 growth or stress factor to the overall population growth rate.
 
 A [`rate`](@ref) method corresponding to the model type must be defined specifying
 the formulation, and optionally a [`condition`](@ref) method to e.g. ignore data below
 thresholds.
+
+## Returns
+
+An `AbstractFloat` with implicit units of `N*N^-1*T^-1`, where `N` is the 
+number of individuals and `T` is time, usually one day. 
+
+It should _not_ return a Unitful.jl `Quantity`.
 """
 abstract type RateModel end
 
@@ -71,21 +64,33 @@ for the current timestep.
 abstract type StressModel <: RateModel end
 
 """
-    rate(m, x)
-Calculates the rate modifyer for a single cell. Must be defined for all models.
+    rate(m::RateModel, x)
 
-`m` is the object containing the model parameters, and
-`x` is the value at a particular location for of an environmental variable
-specified by the models `key()` method, using corresponding to its `key` field.
+Returns a growth rate multiplier for a model given environmental 
+variable x, for a single cell. Must be defined for all `RateModel`.
+
+## Arguments
+
+- `m`: the object containing the model parameters
+- `x`: the value at a particular location for of an environmental variable
+  specified by the models `key()` method, using corresponding to its `key` field.
+
+`rate` methods should use the `@inline` macro to force inlining.
 """
 function rate end
 
 """
-    condition(m, x)
+    condition(m::RateModel, x)
 
-Subseting the data before applying the rate method, given the model `m` and
-the environmental variable of value x. Returns a boolean. If not defined, defaults
-to `true` for all values.
+Subset the data before applying the rate method, given the model `m` and
+the environmental variable of value x. 
+
+Returns a `Bool`. `true` will run the `rate` model, `false` will keep the 
+current growth rate, which is `1` for a single model.
+
+If not defined for a given `RateModel`, `condition` returns `true` for all cells.
+
+`condition` methods should use the `@inline` macro to force inlining.
 """
 function condition end
 condition(m, x) = true
@@ -101,21 +106,12 @@ abstract type AbstractLowerStress <: StressModel end
 A [`StressModel`](@ref) where stress occurs below a `threshold` at a
 specified `mortalityrate` for some environmental layer `key`.
 
-Independent variables must be in the same units as
+If units are used, the `Layer` that wraps this models must be in units convertible to the 
+units used in `threshold`.
 """
-@bounds struct LowerStress{T,M} <: AbstractLowerStress
-    threshold::T     | (0.0, 1.0)
-    mortalityrate::M | (-0.5, 0.0)
-end
-
-@bounds struct ColdStress{T,M} <: AbstractLowerStress
-    threshold::T     | (250, 350)
-    mortalityrate::M | (-0.5, 0.0)
-end
-
-@bounds struct MoistureStress{T,M} <: AbstractLowerStress
-    threshold::T     | (0.0, 1.0)
-    mortalityrate::M | (-0.5, 0.0)
+struct LowerStress{T,M} <: AbstractLowerStress
+    threshold::T
+    mortalityrate::M
 end
 
 abstract type AbstractUpperStress <: StressModel end
@@ -129,26 +125,10 @@ abstract type AbstractUpperStress <: StressModel end
 A [`StressModel`](@ref) where stress occurs above a `threshold` at the
 specified `mortalityrate`, for some environmental layer `key`.
 """
-@bounds struct UpperStress{T,M} <: AbstractUpperStress
-    threshold::T     | (0.0, 1.0)
-    mortalityrate::M | (-0.5, 0.0)
+struct UpperStress{T,M} <: AbstractUpperStress
+    threshold::T
+    mortalityrate::M
 end
-
-@bounds struct HeatStress{T,M} <: AbstractUpperStress
-    threshold::T     | (250, 350)
-    mortalityrate::M | (-0.5, 0.0)
-end
-
-@bounds struct WiltStress{T,M} <: AbstractUpperStress
-    threshold::T     | (0.0, 1.0)
-    mortalityrate::M | (-0.5, 0.0)
-end
-
-@bounds struct WetStress{T,M} <: AbstractUpperStress
-    threshold::T     | (0.0, 1.0)
-    mortalityrate::M | (-0.5, 0.0)
-end
-
 
 """
 SchoolfieldIntrinsicGrowth(p, ΔH_A, ΔH_L, ΔH_H, Thalf_L, Thalf_H, T_ref, R)
@@ -171,17 +151,17 @@ The value of the specified data layer _must_ be in Kelvin.
 This can be parameterised from empirical data, (see Zhang et al. 2000; Haghani
 et al. 2006; Chien and Chang 2007) and non-linear least squares regression.
 """
-@flattenable @bounds struct SchoolfieldIntrinsicGrowth{P,HA,HL,HH,TL,TH,TR} <: GrowthModel
-    p::P         | true  | (0.0, 1.0)
-    ΔH_A::HA     | true  | (0.0u"cal/mol", 1e6u"cal/mol")
-    ΔH_L::HL     | true  | (-1e6u"cal/mol", 0.0u"cal/mol")
-    T_halfL::TL  | true  | (150.0K, 400K)
-    ΔH_H::HH     | true  | (0.0u"cal/mol", 1e6u"cal/mol")
-    T_halfH::TH  | true  | (150.0K, 400K)
-    T_ref::TR    | false | _
+struct SchoolfieldIntrinsicGrowth{P,HA,HL,HH,TL,TH,TR} <: GrowthModel
+    p::P
+    ΔH_A::HA
+    ΔH_L::HL
+    T_halfL::TL
+    ΔH_H::HH
+    T_halfH::TH
+    T_ref::TR
 end
 
-@inline rate(m::SchoolfieldIntrinsicGrowth, x) = begin
+@inline function rate(m::SchoolfieldIntrinsicGrowth, x)
     @fastmath m.p * x/m.T_ref * exp(m.ΔH_A/R * (1/m.T_ref - 1/x)) /
         (1 + exp(m.ΔH_L/R * (1/m.T_halfL - 1/x)) + exp(m.ΔH_H/R * (1/m.T_halfH - 1/x)))
 end
@@ -202,19 +182,16 @@ data in different units with the same models.
 struct Layer{K,U,M}
     model::M
 end
-Layer{K,U}(model::RateModel) where {K,U} =
-    Layer{K,U,typeof(model)}(model)
-Layer(key::Symbol, model::RateModel) =
-    Layer{key,unit(u"1"),typeof(model)}(model)
-Layer(key::Symbol, u::Units, model::RateModel) =
-    Layer{key,u,typeof(model)}(model)
+Layer{K,U}(model::RateModel) where {K,U} = Layer{K,U,typeof(model)}(model)
+Layer(key::Symbol, model::RateModel) = Layer{key,unit(u"1"),typeof(model)}(model)
+Layer(key::Symbol, u::Units, model::RateModel) = Layer{key,u,typeof(model)}(model)
 Layer(key::Symbol, q::Quantity, model::RateModel) =
     Layer{key,typeof(q),typeof(model)}(model)
 
 model(l::Layer) = l.model
 
-rate(l::Layer, x) = rate(l.model, x)
-condition(l::Layer, x) = condition(l.model, x)
+@inline rate(l::Layer, x) = rate(l.model, x)
+@inline condition(l::Layer, x) = condition(l.model, x)
 
 ConstructionBase.constructorof(::Type{<:Layer{K,U}}) where {K,U} = Layer{K,U}
 
