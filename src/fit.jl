@@ -1,12 +1,4 @@
 
-# struct CustomBulma <: InteractBase.WidgetTheme; end
-
-# const custom_css = "/home/raf/julia/GrowthMaps/assets/interact.css"
-
-# InteractBase.libraries(::CustomBulma) = [InteractBase.libraries(Interact.Bulma())...]
-# InteractBase.registertheme!(:custombulma, CustomBulma())
-# settheme!(CustomBulma())
-
 """
     fit(model, obs::AbstractArray)
 
@@ -19,36 +11,39 @@ Any (nested) `Real` fields on the struct are flattened to a parameter vector usi
 using the `@flattenable` macro from [FieldMetadata.jl](http://github.com/rafaqz/FieldMetadata.jl).
 
 ## Arguments
+
 - `model`: Any constructed [`RateModel`](@ref) or a `Tuple` of `RateModel`.
-- `obs`: `Vector` of observations, such as length 2 `Tuple`s of `Real`.
-  Leave units off.
+- `obs`: A `Vector` of `(val, rate)` tuples where `val` is the value of the
+  x-axis variable (such as temperature), and `rate` is the growth rate observed.
 
 ## Returns
-An updated model with fitted parameters.
+
+An updated `Model` containing the fitted parameter values.
 """
-fit(model, obs::AbstractArray) = begin
-    fit = curve_fit(ModelWrapper(model), first.(obs), last.(obs), [flatten(model, Real)...])
-    reconstruct(model, fit.param)
+function fit!(model::Model, obs::AbstractArray)
+    fit = curve_fit(first.(obs), last.(obs), collect(model[:val])) do xs, vals
+        model[:val] = vals
+        GrowthMaps.conditionalrate.(Ref(stripparams(model)), xs)
+    end
+    model[:val] = fit.param
+    return model
 end
 
 """
-    fit!(model::ModelWrapper, obs::AbstractArray)
+    manualfit!(model::Model, data::NamedTuple; obs=[], kw...) =
 
-Run `fit` on the contained model, and write the
-updated model to the mutable modelwrapper.
-"""
-fit!(wrapper::ModelWrapper, obs::AbstractArray) = begin
-    wrapper.model = fit(wrapper.model, obs)
-    wrapper
-end
+Returns the fitted model.
 
-"""
-    manualfit!(wrapper::ModelWrapper, ranges::Array; obs=[],  kwargs...) =
+# Arguments
 
-Returns the wrapper with the fitted model.
-
-- `obs`: A `Vector` of `(val, rate)` tuples/vectors
-- `data`:
+- `obs`: A `Vector` of `(val, rate)` tuples where `val` is the value of the
+  x-axis variable (such as temperature), and `rate` is the growth rate observed.
+- `data`: A `NamedTuple` of `AbstractVector`. The `NamedTuple` key/s must match
+  the key required by the `Layer`/s.
+- `obs`: Optional observations to scatter-plot over the curve. A `Vector` of `(val, rate)`
+  tuples where `val` is the value of the x-axis variable (such as temperature), and `rate`
+  is the growth rate observed.
+- `kwargs`: passed to `plot`
 
 # Example
 
@@ -61,7 +56,7 @@ Thalf_L = 2e2K
 Thalf_H = 3e2K
 T_ref = K(25.0°C)
 growthmodel = SchoolfieldIntrinsicGrowth(p, ΔH_A, ΔH_L, Thalf_L, ΔH_H, Thalf_H, T_ref)
-model = ModelWrapper(Layer(:surface_temp, K, growthmodel))
+model = Model(Layer(:surface_temp, K, growthmodel))
 obs = []
 
 tempdata=(surface_temp=(270.0:0.1:310.0)K,)
@@ -75,37 +70,62 @@ w = Blink.Window()
 body!(w, interface)
 ```
 """
-manualfit!(wrapper::ModelWrapper, range::NamedTuple{<:Any,<:Tuple{Vararg{<:AbstractVector}}};
-           obs=[], kwargs...) =
-    interface!(manualfit, wrapper, (obs, range); kwargs...)
+function manualfit!(
+    model::AbstractModel, data::NamedTuple{<:Any,<:Tuple{Vararg{<:AbstractVector}}};
+    observations=[],
+    throttle=0.1,
+    kwargs...
+)
+    InteractModel(model; throttle=throttle) do updated_model
+        @show params(updated_model)
+        ModelParameters.setparent!(model, updated_model)
+        manualfit(stripparams(updated_model), (observations, data); kwargs...)
+    end
+end
 
-manualfit(model, (obs, ranges)) = begin
-    predictions = combinelayers(model, ranges)
-    p = plot(first(ranges), predictions; label="predicted", legend=false)
-    scatter!(p, obs; label="observed")
-    p
+function manualfit(model, (observations, data); kwargs...)
+    predictions = combinelayers(model, data)
+    p = plot(first(data), predictions; label="predicted", legend=false, kwargs...)
+    scatter!(p, observations; label="observed")
+    return p
 end
 
 """
-    mapfit!(wrapper::ModelWrapper, modelkwargs; occurrence=[], precomputed=nothing, kwargs...)
+    mapfit!(model::Model, modelkwargs;
+            occurrence=[],
+            precomputed=nothing,
+            throttle=0.1,
+            window=(Band(1),),
+            kwargs...
+    )
 
 Fit a model to the map.
+
+# Arguments
+
+- `occurence`: a `Vector` of occurence locations, as `(lon, lat)` tuples.
+- `modelkwargs`: are passed to the `mapgrowth` with the model.
+- `mapkwargs`: are passed to the `plot` function the plots the `GeoArray`
+- `throttle`: the response time of Interact.jl sliders.
+- `window`: selects a window of the output to plot. By default this is `(Band(1),)`,
+  which just removes the `Band` dimension from a `GeoArray`, if it exists.
+- `kwargs`: passed to `Plots.scatter!`
 
 # Example
 
 ```julia
-wrapper = ModelWrapper(wiltstress, coldstress, heatstress)
-throttle = 0.2
-interface = mapfit!(wrapper, modelkwargs;
+model = Model(wiltstress, coldstress, heatstress)
+interface = mapfit!(model, modelkwargs;
     occurrence=occurrence,
     precomputed=precomputed,
-    throttle=throttle,
+    throttle=0.2,
+    window=(Band(1),),
     markershape=:cross,
     markercolor=:lightblue,
     markeropacity=0.4
 )
 display(interface)
-``` 
+```
 
 To use the interface in a desktop app, use Blink.jl:
 
@@ -115,17 +135,37 @@ w = Blink.Window()
 body!(w, interface)
 ```
 """
-mapfit!(wrapper::ModelWrapper, modelkwargs; occurrence=[], precomputed=nothing, kwargs...) =
-    interface!(mapfit, wrapper, (modelkwargs, occurrence, precomputed); kwargs...)
+function mapfit!(model::AbstractModel, modelkwargs;
+    mapkwargs=(),
+    occurrence=[],
+    precomputed=nothing,
+    throttle=0.1,
+    scatterkwargs...
+)
+    title = "GrowthMaps: mapfit interface"
+    InteractModel(model; throttle=throttle, title=title) do updated_model
+        ModelParameters.setparent!(model, updated_model)
+        mapfit(
+            stripparams(updated_model), (modelkwargs, occurrence, precomputed); 
+            scatterkwargs...
+        )
+    end
+end
 
-mapfit(model, (modelkwargs, occurrence, precomputed);
-       window=(Band(1),), levels=10, markercolor=:white, markersize=2.0,
-       clims=(0.0, 0.25), mapkwargs=(), scatterkwargs...) = begin
+function mapfit(model, (modelkwargs, occurrence, precomputed);
+    window=(Band(1),),
+    levels=10,
+    mapkwargs=(),
+    markercolor=:white,
+    markersize=2.0,
+    clims=(0.0, 0.25),
+    scatterkwargs...
+)
     output = mapgrowth(model; modelkwargs...)
     output = isnothing(precomputed) ? output : output .+ precomputed
     windowed = output[window...]
     p = plot(windowed; legend=:none, levels=levels, clims=clims, mapkwargs...)
-    scatter(; tkwarg...) = scatter!(occurrence; tkwarg..., markercolor=markercolor, markersize=markersize, scatterkwargs...)
+    scatter(; t...) = scatter!(p, occurrence; t..., markercolor=markercolor, markersize=markersize, scatterkwargs...)
     if hasdim(windowed, Ti())
         for t in 1:length(dims(windowed, Ti()))
             scatter(; subplot=t)
@@ -133,52 +173,5 @@ mapfit(model, (modelkwargs, occurrence, precomputed);
     else
         scatter()
     end
-    p
+    return p
 end
-
-interface!(f, wrapper::ModelWrapper, data;
-           use=Number, ignore=Nothing, throttle=0.1, kwargs...) = begin
-    plotobs = Observable(f(wrapper.model, data; kwargs...))
-    sliders, slider_obs, slider_groups = build_sliders(wrapper.model, use, ignore, throttle)
-    on(slider_obs) do params
-        wrapper.model = Flatten.reconstruct(wrapper.model, params, use, ignore)
-        plotobs[] = f(wrapper.model, data; kwargs...)
-    end
-    vbox(dom"h1"("GrowthMaps.jl $f"), plotobs, vbox(slider_groups...))
-end
-
-
-build_sliders(model, use, ignore, _throttle) = begin
-    params = Flatten.flatten(model, use, ignore)
-    fnames = fieldnameflatten(model, use, ignore)
-    bounds = metaflatten(model, FieldMetadata.bounds, use, ignore)
-    ranges = buildrange.(bounds, params)
-    parents = parentnameflatten(model, use, ignore)
-    descriptions = metaflatten(model, FieldMetadata.description, use, ignore)
-    attributes = ((p, n, d) -> Dict(:title => "$p.$n: $d")).(parents, fnames, descriptions)
-
-    sliders = make_slider.(params, fnames, ranges, attributes)
-    slider_obs = map((s...) -> s, throttle.(_throttle, observe.(sliders))...)
-
-    group_title = nothing
-    slider_groups = []
-    group_items = []
-    for i in 1:length(params)
-        parent = parents[i]
-        if group_title != parent
-            group_title == nothing || push!(slider_groups, dom"div"(group_items...))
-            group_items = Any[dom"h2"(string(parent))]
-            group_title = parent
-        end
-        push!(group_items, sliders[i])
-    end
-    push!(slider_groups, dom"h2"(group_items...))
-
-    sliders, slider_obs, slider_groups
-end
-
-make_slider(val, lab, rng, attr) =
-    slider(rng; label=string(lab), value=val, attributes=attr)
-
-buildrange(bounds::Tuple, val::T) where T =
-    T(bounds[1]):(T(bounds[2])-T(bounds[1]))/1000:T(bounds[2])
