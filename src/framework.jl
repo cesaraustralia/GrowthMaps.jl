@@ -2,10 +2,10 @@
     mapgrowth(model; series::AbstractGeoSeries, tspan::AbstractRange)
     mapgrowth(layers...; kwargs...)
 
-Combine growth rates and stressors for all layers,
-in all files in each `series` falling in each period of `tspan`.
+Combine growth rates accross layers and subperiods for all required periods.
 
 ## Arguments
+
 - `model`: A `Model` or `Tuple` of `Layer` components. 
   `Layer`s can also be passed in as separate arguments.
 
@@ -14,20 +14,9 @@ in all files in each `series` falling in each period of `tspan`.
 - `series`: any AbstractGeoSeries from [GeoData.jl](http://github.com/rafaqz/GeoData.jl)
 - `tspan`: `AbstractRange` for the timespan to run the layers for.
   This will become the `index` values of the output `GeoArray` time-dimension `Ti`.
-- `arraytype`: An array constructor to apply to data once it's loaded from disk.
-  The main use case for this is a `GPUArray` such as `CuArray` which will result in all
-  computations happening on the GPU, if you have one.
 
-Using multiple models in a `NamedTuple` can be an order of magnitude faster than
-running models separately -- especially when `arraytype=CuArray` or similar.
-In this configuration, all data required by all layers in all models will be loaded
-from disk only once and copied to the GPU only once. This is useful for doing all kinds 
-of sensitivity analysis and model comparison. 
-
-##  Returns 
-
-A `GeoArray` or `NamedTuple` of `GeoArray`, with the same dimensions as the passed-in 
-stack layers, and an additional `Ti` (time) dimension matching `tspan`.
+The output is a GeoArray with the same dimensions as the passed in stack layers, and a Time
+dimension with a length of `nperiods`.
 """
 mapgrowth(model::Model; kwargs...) = mapgrowth(parent(model); kwargs...)
 mapgrowth(layers...; kwargs...) = mapgrowth(layers; kwargs...)
@@ -36,7 +25,7 @@ function mapgrowth(layers::Tuple;
 )
     period = step(tspan); nperiods = length(tspan)
     startdate, enddate = first(tspan), last(tspan)
-    required_keys = Tuple(union(map(l -> tuple(union(keys(l))), models)...)[1])
+    required_keys = Tuple(union(keys(layers)))
 
     # Copy only the required keys to a memory-backed stack
     stack = GeoStack(deepcopy(first(series)); keys=required_keys)
@@ -54,13 +43,13 @@ function mapgrowth(layers::Tuple;
     outA = arraytype(zeros(eltype(A), size(A)..., nperiods))
     output = GeoArray(outA, outdims; name=:growthrate, missingval=missingval)
 
-    runperiods!(outputs, stackbuffer, series, mask, models, tspan)
+    runperiods!(output, stackbuffer, series, mask, layers, tspan)
 
     # Return a GeoArray wrapping a regular Array, not arraytype
-    map(o -> GeoData.modify(Array, o), outputs)
+    GeoData.modify(Array, output)
 end
 
-function runperiods!(outputs::NamedTuple, stackbuffer, series, mask, models::NamedTuple, tspan)
+function runperiods!(output, stackbuffer, series, mask, layers, tspan)
     period = step(tspan); nperiods = length(tspan)
     println("Running for $(1:nperiods)")
     for p in 1:nperiods
@@ -74,25 +63,18 @@ function runperiods!(outputs::NamedTuple, stackbuffer, series, mask, models::Nam
         # So we just work with time as Points using `Where`.
         subseries = series[Ti(Where(t -> t >= periodstart && t < periodend))]
         for t in 1:size(subseries, Ti)
-            println("\n    ", val(dims(subseries, Ti))[t])
+            println("    ", val(dims(subseries, Ti))[t])
             # Copy the arrays we need from disk to the buffer stack
             copy!(stackbuffer, subseries[t])
-            map(outputs, models, keys(outputs)) do output, model, key
-                length(models) > 1 && println("        For $key")
-                # For some reason now this is broken with DD getindex, view is a workaround
-                parent(view(output, Ti(p))) .+= combinelayers(model, stackbuffer)
-            end
+            # For some reason now this is broken with DD getindex, view is a workaround
+            parent(view(output, Ti(p))) .+= combinelayers(layers, stackbuffer)
             n += 1
         end
         if n > 0
-            map(outputs) do output
-                parent(view(output, Ti(p))) .*= mask ./ n
-            end
+            parent(view(output, Ti(p))) .*= mask ./ n
         else
             @warn ("No files found for the $period period starting $periodstart")
-            map(outputs) do output
-                parent(view(output, Ti(p))) .*= mask
-            end
+            parent(view(output, Ti(p))) .*= mask
         end
     end
 end
