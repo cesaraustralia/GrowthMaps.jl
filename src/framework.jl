@@ -23,6 +23,7 @@ mapgrowth(layers...; kwargs...) = mapgrowth(layers; kwargs...)
 function mapgrowth(layers::Tuple; 
     series::AbstractGeoSeries, tspan::AbstractRange, arraytype=Array
 )
+    layers = stripparams(layers)
     period = step(tspan); nperiods = length(tspan)
     startdate, enddate = first(tspan), last(tspan)
     required_keys = Tuple(union(keys(layers)))

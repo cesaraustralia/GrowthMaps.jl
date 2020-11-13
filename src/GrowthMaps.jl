@@ -8,10 +8,12 @@ using ConstructionBase,
       GeoData,
       InteractModels,
       LsqFit,
-      ModelParameters,
       Plots,
+      Reexport,
       Unitful,
       UnitfulRecipes
+
+@reexport using ModelParameters
 
 using GeoData: rebuild
 using Unitful: °C, K, R, Units
@@ -25,7 +27,7 @@ export GrowthModel, SchoolfieldIntrinsicGrowth
 
 export StressModel, LowerStress, UpperStress
 
-export Layer, ModelWrapper
+export Layer
 
 include("models.jl")
 include("framework.jl")
