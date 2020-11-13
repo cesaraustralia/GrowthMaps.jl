@@ -94,16 +94,16 @@ using the :surface_temp key that the model requires:
 
 
 ```julia; results="hidden"
-wrapper = ModelWrapper(fittedgrowth)
+model = Model(fittedgrowth)
 tempdata=(surface_temp=temprange,)
-manualfit!(wrapper, tempdata; obs=obs)
+manualfit!(model, tempdata; obs=obs)
 ```
 
 If you are happy with the result, you we can update extract the manual fit
 to use to generate our growth rate maps:
 
 ```julia; results="hidden"
-fittedgrowth = wrapper.model
+fittedgrowth = parent(model)
 ```
 
 Note that `manualfit!` will also work for a tuple of model components
@@ -297,9 +297,9 @@ the first time: but you can select any/multiple, and select them with
 `Near(DateTime(2016,2))` or similar.
 
 ```julia; results="hidden"
-wrapper = ModelWrapper(wiltstress, coldstress, heatstress)
+model = Model(wiltstress, coldstress, heatstress)
 throttle = 0.2
-interface = mapfit!(wrapper, modelkwargs;
+interface = mapfit!(model, modelkwargs;
     occurrence=occurrence,
     precomputed=precomputed,
     throttle=throttle,
@@ -323,10 +323,10 @@ w = Blink.Window()
 body!(w, interface)
 ```
 
-And get the updated model components from the wrapper:
+And get the updated model components from the model:
 
 ```julia; results="hidden"
-wiltstress, coldstress, heatstress = wrapper.model
+wiltstress, coldstress, heatstress = parent(model)
 ```
 
 Now we will put together decent population growth maps
