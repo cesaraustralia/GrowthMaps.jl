@@ -29,7 +29,7 @@ function mapgrowth(layers::Tuple;
     required_keys = Tuple(union(keys(layers)))
 
     # Copy only the required keys to a memory-backed stack
-    stack = GeoStack(deepcopy(first(series)); keys=required_keys)
+    stack = deepcopy(GeoStack(first(series); keys=required_keys))
 
     A = first(values(stack));
     missingval = eltype(A)(NaN)
@@ -72,10 +72,11 @@ function runperiods!(output, stackbuffer, series, mask, layers, tspan)
             n += 1
         end
         if n > 0
+            # Here parent gets the view back after re-wrapping of the GeoArray 
+            # Because DD broadcast is broken for CuArray above 3 dimensions
             parent(view(output, Ti(p))) .*= mask ./ n
         else
             @warn ("No files found for the $period period starting $periodstart")
-            parent(view(output, Ti(p))) .*= mask
         end
     end
 end
