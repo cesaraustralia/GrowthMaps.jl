@@ -6,8 +6,10 @@ Combine growth rates accross layers and subperiods for all required periods.
 
 ## Arguments
 
-- `model`: A `Model` or `Tuple` of `Layer` components. 
-  `Layer`s can also be passed in as separate arguments.
+- `model`: A `Model`, NamedTuple of `Model`,  or `Tuple` of `Layer` components. 
+
+`Layer`s can also be passed in as separate arguments. A `NamedTuple` of models
+will all be run from the same data source, reducing load time.
 
 ## Keyword Arguments
 
@@ -18,15 +20,17 @@ Combine growth rates accross layers and subperiods for all required periods.
 The output is a GeoArray with the same dimensions as the passed in stack layers, and a Time
 dimension with a length of `nperiods`.
 """
-mapgrowth(model::Model; kwargs...) = mapgrowth(parent(model); kwargs...)
-mapgrowth(layers...; kwargs...) = mapgrowth(layers; kwargs...)
-function mapgrowth(layers::Tuple; 
+mapgrowth(layers::Layer...; kw...) = mapgrowth(layers; kw...)
+mapgrowth(layers::Tuple{<:Layer,Vararg}; kw...) = mapgrowth(Model(layers); kw...)
+mapgrowth(model::Model; kw...) = mapgrowth((model,); kw...)[1]
+mapgrowth(m1::Model, ms::Model...; kw...) = mapgrowth((m1, ms...); kw...)
+function mapgrowth(models::Union{Tuple{<:Model,Vararg},NamedTuple{<:Any,Tuple{<:Model,Vararg}}}; 
     series::AbstractGeoSeries, tspan::AbstractRange, arraytype=Array
 )
-    layers = stripparams(layers)
+    models = map(stripparams ∘ parent, models)
     period = step(tspan); nperiods = length(tspan)
     startdate, enddate = first(tspan), last(tspan)
-    required_keys = Tuple(union(keys(layers)))
+    required_keys = Tuple(union(map(keys ∘ _astuple, models)...))
 
     # Copy only the required keys to a memory-backed stack
     stack = deepcopy(GeoStack(first(series); keys=required_keys))
@@ -42,15 +46,17 @@ function mapgrowth(layers::Tuple;
     ti = Ti(tspan; mode=Sampled(Ordered(), Regular(period), Intervals(Start())))
     outdims = (dims(A)..., ti)
     outA = arraytype(zeros(eltype(A), size(A)..., nperiods))
-    output = GeoArray(outA, outdims; name=:growthrate, missingval=missingval)
+    outputs = map(models) do m
+        GeoArray(deepcopy(outA), outdims; name=:growthrate, missingval=missingval)
+    end
 
-    runperiods!(output, stackbuffer, series, mask, layers, tspan)
+    runperiods!(outputs, stackbuffer, series, mask, models, tspan)
 
     # Return a GeoArray wrapping a regular Array, not arraytype
-    GeoData.modify(Array, output)
+    map(o -> GeoData.modify(Array, o), outputs)
 end
 
-function runperiods!(output, stackbuffer, series, mask, layers, tspan)
+function runperiods!(outputs, stackbuffer, series, mask, models, tspan)
     period = step(tspan); nperiods = length(tspan)
     println("Running for $(1:nperiods)")
     for p in 1:nperiods
@@ -67,16 +73,21 @@ function runperiods!(output, stackbuffer, series, mask, layers, tspan)
             println("    ", val(dims(subseries, Ti))[t])
             # Copy the arrays we need from disk to the buffer stack
             copy!(stackbuffer, subseries[t])
-            # For some reason now this is broken with DD getindex, view is a workaround
-            parent(view(output, Ti(p))) .+= combinelayers(layers, stackbuffer)
+            map(outputs, models, keys(outputs)) do output, model, key
+                # For some reason now this is broken with DD getindex, view is a workaround
+                parent(view(output, Ti(p))) .+= combinelayers(model, stackbuffer)
+            end
             n += 1
         end
         if n > 0
-            # Here parent gets the view back after re-wrapping of the GeoArray 
-            # Because DD broadcast is broken for CuArray above 3 dimensions
-            parent(view(output, Ti(p))) .*= mask ./ n
+            map(outputs) do output
+                parent(view(output, Ti(p))) .*= mask ./ n
+            end
         else
             @warn ("No files found for the $period period starting $periodstart")
+            map(outputs) do output
+                parent(view(output, Ti(p))) .*= mask
+            end
         end
     end
 end
@@ -101,3 +112,6 @@ maybetoK(val) = unit(val) == u"°C" ? val |> K : val
     conditionalrate(model(l), maybetoK(val))
 @inline conditionalrate(model::RateModel, val) =
     condition(model, val) ? rate(model, val) : zero(rate(model, val))
+
+_astuple(x::Tuple) = x
+_astuple(x) = (x,)
