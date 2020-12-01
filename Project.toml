@@ -17,7 +17,7 @@ UnitfulRecipes = "42071c24-d89e-48dd-8a24-8a12d9b8861f"
 
 [compat]
 ConstructionBase = "1"
-GeoData = "0.2"
+GeoData = "0.2, 0.3"
 InteractModels = "0.3"
 LsqFit = "0.10, 0.11"
 ModelParameters = "0.3"
