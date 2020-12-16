@@ -24,7 +24,7 @@ mapgrowth(layers::Layer...; kw...) = mapgrowth(layers; kw...)
 mapgrowth(layers::Tuple{<:Layer,Vararg}; kw...) = mapgrowth(Model(layers); kw...)
 mapgrowth(model::Model; kw...) = mapgrowth((model,); kw...)[1]
 mapgrowth(m1::Model, ms::Model...; kw...) = mapgrowth((m1, ms...); kw...)
-function mapgrowth(models::Union{Tuple{<:Model,Vararg},NamedTuple{<:Any,Tuple{<:Model,Vararg}}}; 
+function mapgrowth(models::Union{Tuple{<:Model,Vararg},NamedTuple{<:Any,<:Tuple{<:Model,Vararg}}}; 
     series::AbstractGeoSeries, tspan::AbstractRange, arraytype=Array
 )
     models = map(stripparams ∘ parent, models)
