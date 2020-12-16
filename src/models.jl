@@ -25,7 +25,7 @@ expressed as ``\\frac{dN}{dt} = rN``, then ``r`` is the intrinsic population
 growth rate (individuals per day per individual) which can be decomposed into
 per capita reproduction and mortality rate. The intrinsic growth rate parameter
 ``r`` depends strongly on temperature, with population growth inhibited at low
-and high temperatures (Haghani et al. 2006).
+and high temperatures.
 
 This can be described using a variety of non-linear functions,
 see [`SchoolfieldIntrinsicGrowth`](@ref) for an implementation.
@@ -36,7 +36,7 @@ abstract type GrowthModel <: RateModel end
 Extreme stressor mortality can be assumed to occur once an environmental
 variable ``s`` exceeds some threshold (e.g. critical thermal maximum), beyond
 which the mortality rate scales approximately linearly with the depth of the
-stressor (Enriquez and Colinet 2017).
+stressor.
 
 Stressor induced mortality is incorporated in growth rates by quantifying the
 `threshold` parameter ``s_c`` beyond which stress associated mortality
@@ -136,8 +136,6 @@ SchoolfieldIntrinsicGrowth(p, ΔH_A, ΔH_L, ΔH_H, Thalf_L, Thalf_H, T_ref, R)
 A [`GrowthModel`](@ref) where the temperature response of positive growth rate is
 modelled following Schoolfield et al. 1981, _"Non-linear regression of biological
 temperature-dependent rate models base on absolute reaction-rate theory"_.
-
-The value of the specified data layer _must_ be in Kelvin.
 
 ## Arguments
 - `p::P`: growth rate at reference temperature `T_ref`
