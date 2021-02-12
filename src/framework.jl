@@ -25,7 +25,7 @@ mapgrowth(layers::Tuple{<:Layer,Vararg}; kw...) = mapgrowth(Model(layers); kw...
 mapgrowth(model::Model; kw...) = mapgrowth((model,); kw...)[1]
 mapgrowth(m1::Model, ms::Model...; kw...) = mapgrowth((m1, ms...); kw...)
 function mapgrowth(models::Union{Tuple{<:Model,Vararg},NamedTuple{<:Any,<:Tuple{<:Model,Vararg}}}; 
-    series::AbstractGeoSeries, tspan::AbstractRange, arraytype=Array
+    series::AbstractGeoSeries, tspan::AbstractRange, arraytype=Array, initval=nothing
 )
     models = map(stripparams ∘ parent, models)
     period = step(tspan); nperiods = length(tspan)
@@ -35,7 +35,8 @@ function mapgrowth(models::Union{Tuple{<:Model,Vararg},NamedTuple{<:Any,<:Tuple{
     # Copy only the required keys to a memory-backed stack
     stack = deepcopy(GeoStack(first(series); keys=required_keys))
 
-    A = first(values(stack));
+    A = first(values(stack))
+    initval === nothing && (initval = zero(eltype(A)))
     missingval = eltype(A)(NaN)
 
     # Replace false with NaN
@@ -45,7 +46,7 @@ function mapgrowth(models::Union{Tuple{<:Model,Vararg},NamedTuple{<:Any,<:Tuple{
     # Make a 3 dimensional GeoArray for output, adding the time dimension
     ti = Ti(tspan; mode=Sampled(Ordered(), Regular(period), Intervals(Start())))
     outdims = (dims(A)..., ti)
-    outA = arraytype(zeros(eltype(A), size(A)..., nperiods))
+    outA = arraytype(fill(initval, size(A)..., nperiods))
     outputs = map(models) do m
         GeoArray(deepcopy(outA), outdims; name=:growthrate, missingval=missingval)
     end

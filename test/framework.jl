@@ -1,36 +1,36 @@
-using GrowthMaps, GeoData, ModelParameters, Dates, Test
+using GrowthMaps, GeoData, ModelParameters, Dates, Test, StaticArrays
 using Unitful: °C, K, hr, d, mol, cal
 
-@testset "mapgrowth" begin
-    dimz = Lat(10:10), Lon((100, 110))
+dimz = Lat(10:10), Lon((100, 110))
 
-    # Set up series data
-    stressdata = GeoArray.([[1. 2.], [1. 2.],
-                            [2. 3.], [3. 4.], [2.5 3.5],
-                            [4. 5.], [5. 6.],
-                            [6. 7.], [6. 7.], [6. 7.]], Ref(dimz); name=:stress)
-    # TODO set up tempdata
-    tempdata = GeoArray.([[270. 280.], [270. 280.],
-                          [270. 280.], [270. 280.], [270. 280.],
-                          [270. 280.], [270. 280.],
-                          [270. 280.], [270. 280.], [270. 280.]], Ref(dimz); name=:tempdata)
+# Set up series data
+stressdata = GeoArray.([[1. 2.], [1. 2.],
+                        [2. 3.], [3. 4.], [2.5 3.5],
+                        [4. 5.], [5. 6.],
+                        [6. 7.], [6. 7.], [6. 7.]], Ref(dimz); name=:stress)
+# TODO set up tempdata
+tempdata = GeoArray.([[270. 280.], [270. 280.],
+                      [270. 280.], [270. 280.], [270. 280.],
+                      [270. 280.], [270. 280.],
+                      [270. 280.], [270. 280.], [270. 280.]], Ref(dimz); name=:tempdata)
 
-    # Build a GeoSeries
-    stacks = [GeoStack(NamedTuple{(:stress, :temp)}((stressdata[i], tempdata[i]))) for i in 1:length(stressdata)]
-    timedim = (Ti([DateTime(2016, 1, 3, 9),
-                   DateTime(2016, 1, 6, 15),
-                   DateTime(2016, 2, 3, 10),
-                   DateTime(2016, 2, 3, 14),
-                   DateTime(2016, 2, 18, 10),
-                   DateTime(2016, 3, 3, 3),
-                   DateTime(2016, 3, 3, 8),
-                   DateTime(2016, 4, 3, 14),
-                   DateTime(2016, 4, 4, 10),
-                   DateTime(2016, 4, 16, 14)
-                  ]; mode=Sampled(; span=Regular(Hour(3)))),)
-    series = GeoSeries(stacks, timedim)
-    @test series[At(DateTime(2016, 1, 3, 9))][:stress] == [1. 2.]
+# Build a GeoSeries
+stacks = [GeoStack(NamedTuple{(:stress, :temp)}((stressdata[i], tempdata[i]))) for i in 1:length(stressdata)]
+timedim = (Ti([DateTime(2016, 1, 3, 9),
+               DateTime(2016, 1, 6, 15),
+               DateTime(2016, 2, 3, 10),
+               DateTime(2016, 2, 3, 14),
+               DateTime(2016, 2, 18, 10),
+               DateTime(2016, 3, 3, 3),
+               DateTime(2016, 3, 3, 8),
+               DateTime(2016, 4, 3, 14),
+               DateTime(2016, 4, 4, 10),
+               DateTime(2016, 4, 16, 14)
+              ]; mode=Sampled(; span=Regular(Hour(3)))),)
+series = GeoSeries(stacks, timedim)
+@test series[At(DateTime(2016, 1, 3, 9))][:stress] == [1. 2.]
 
+@testset "mapgrowth float" begin
     # Set up models
     lowerthreshold = 5
     lowermortalityrate = -1
@@ -88,5 +88,21 @@ using Unitful: °C, K, hr, d, mol, cal
         series=series,
         tspan=DateTime(2016, 1, 3):Month(1):DateTime(2016, 5, 3)
     );
-
 end
+
+struct MultiRate <: RateModel end
+
+@inline GrowthMaps.rate(l::MultiRate, x) = SA[x/K, 2x/K, 3x/K]
+
+@testset "mapgrowth returning static array" begin
+    model = Layer(:stress, K, MultiRate())
+
+    output = mapgrowth(model; 
+        series=series,
+        tspan=DateTime(2016, 1, 3):Month(1):DateTime(2016, 4, 3),
+        initval=SA[0.0, 0.0, 0.0]
+    );
+    @test output[1, 1, 1] == SA[1.0, 2.0, 3.0]
+    @test output[1, 2, 1] == SA[2.0, 4.0, 6.0]
+end
+
