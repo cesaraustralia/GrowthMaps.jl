@@ -35,7 +35,6 @@ end
         [rand(0.0:40.0, 10, 10) for i in 1:5], Ref((Lon, Lat)); 
         name=:stress, missingval=-99.0
     )
-
     stacks = [GeoStack((temp=tempdata[i],)) for i in 1:length(tempdata)]
     timedim = (Ti((1:1:5)hr; mode=Sampled(; span=Regular(1hr))),)
     modelkwargs = (series=GeoSeries(stacks, timedim), tspan=1hr:1hr:5hr)
