@@ -25,8 +25,8 @@ end
 @testset "Manual fit interface" begin
     data = (temp=0.0:1.0:45.0,)
 
-    interface = manualfit!(model, data; obs=obs);
     withunits(model, :bounds)
+    interface = manualfit!(model, data; obs=obs);
 end
 
 @testset "Map fit interface" begin
@@ -39,7 +39,10 @@ end
     stacks = [GeoStack((temp=tempdata[i],)) for i in 1:length(tempdata)]
     timedim = (Ti((1:1:5)hr; mode=Sampled(; span=Regular(1hr))),)
     modelkwargs = (series=GeoSeries(stacks, timedim), tspan=1hr:1hr:5hr)
-    mapfit!(model, modelkwargs; occurrence=[(1, 2), (9, 10)]);
+    interface = mapfit!(model, modelkwargs; occurrence=[(1, 2), (9, 10)]);
 end
 
-nothing
+# To test interfaces manually
+# using Blink
+# w = Blink.Window()
+# body!(w, interface)

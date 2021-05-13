@@ -76,7 +76,7 @@ function manualfit!(
     throttle=0.1,
     kwargs...
 )
-    InteractModel(model; throttle=throttle) do updated_model
+    InteractModel(model; throttle=throttle, submodel=RateModel) do updated_model
         @show params(updated_model)
         ModelParameters.setparent!(model, updated_model)
         manualfit(stripparams(updated_model), (observations, data); kwargs...)
@@ -143,7 +143,7 @@ function mapfit!(model::AbstractModel, modelkwargs;
     scatterkwargs...
 )
     title = "GrowthMaps: mapfit interface"
-    InteractModel(model; throttle=throttle, title=title) do updated_model
+    InteractModel(model; throttle=throttle, title=title, submodel=RateModel) do updated_model
         ModelParameters.setparent!(model, updated_model)
         mapfit(
             stripparams(updated_model), (modelkwargs, occurrence, precomputed); 
@@ -165,7 +165,10 @@ function mapfit(model, (modelkwargs, occurrence, precomputed);
     output = isnothing(precomputed) ? output : output .+ precomputed
     windowed = output[window...]
     p = plot(windowed; legend=:none, levels=levels, clims=clims, mapkwargs...)
-    scatter(; t...) = scatter!(p, occurrence; t..., markercolor=markercolor, markersize=markersize, scatterkwargs...)
+    scatter(; t...) = scatter!(
+        p, occurrence; 
+        t..., markercolor=markercolor, markersize=markersize, scatterkwargs...
+    )
     if hasdim(windowed, Ti())
         for t in 1:length(dims(windowed, Ti()))
             scatter(; subplot=t)
