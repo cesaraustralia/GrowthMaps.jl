@@ -1,6 +1,6 @@
 
 """
-    fit(model, obs::AbstractArray)
+    fit!(model, obs::AbstractArray)
 
 Fit a model to data with least squares regression, using `curve_fit` from
 LsqFit.jl. The passed in model should be initialised with sensible defaults,
