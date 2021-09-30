@@ -32,7 +32,7 @@ end
 @testset "Map fit interface" begin
     ## Set up series data
     tempdata = GeoArray.(
-        [rand(0.0:40.0, 10, 10) for i in 1:5], Ref((Lon, Lat)); 
+        [rand(0.0:40.0, 10, 10) for i in 1:5], Ref((X, Y)); 
         name=:stress, missingval=-99.0
     )
     stacks = [GeoStack((temp=tempdata[i],)) for i in 1:length(tempdata)]

@@ -1,7 +1,7 @@
 using GrowthMaps, GeoData, ModelParameters, Dates, Test, StaticArrays
 using Unitful: °C, K, hr, d, mol, cal
 
-dimz = Lat(10:10), Lon((100, 110))
+dimz = Y(10:10), X(100:10:110)
 
 # Set up series data
 stressdata = GeoArray.([[1. 2.], [1. 2.],
@@ -54,7 +54,7 @@ series = GeoSeries(stacks, timedim)
     @test output[Ti(At(DateTime(2016, 3, 3)))] == [-0.5 0.0]
     @test output[Ti(At(DateTime(2016, 4, 3)))] == [0.0 0.0]
 
-    @test typeof(dims(output)) <: Tuple{Lat,Lon,Ti}
+    @test typeof(dims(output)) <: Tuple{Y,X,Ti}
     @test length(val(dims(output, Ti))) == 4
 
     # Upper
