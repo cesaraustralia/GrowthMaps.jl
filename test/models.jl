@@ -2,7 +2,7 @@ using GrowthMaps, GeoData, Unitful, Test
 using Unitful: °C, K, hr, d, mol, cal
 using GrowthMaps: rate, condition, conditionalrate, combinelayers
 
-dimz = Lat((10, 20)), Lon((100, 130))
+dimz = Y(10:20:20), X(100:20:130)
 
 # Models
 lowerdata = [1. 2. 3.
