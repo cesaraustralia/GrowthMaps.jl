@@ -77,7 +77,6 @@ function manualfit!(
     kwargs...
 )
     InteractModel(model; throttle=throttle, submodel=RateModel) do updated_model
-        @show params(updated_model)
         ModelParameters.setparent!(model, updated_model)
         manualfit(stripparams(updated_model), (observations, data); kwargs...)
     end
