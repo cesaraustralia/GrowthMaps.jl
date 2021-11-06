@@ -15,7 +15,7 @@ using ConstructionBase,
 
 @reexport using ModelParameters
 
-using GeoData: rebuild
+using GeoData.LookupArrays 
 using Unitful: °C, K, R, Units
 using Base: tail
 

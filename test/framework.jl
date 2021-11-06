@@ -16,18 +16,21 @@ tempdata = GeoArray.([[270. 280.], [270. 280.],
 
 # Build a GeoSeries
 stacks = [GeoStack(NamedTuple{(:stress, :temp)}((stressdata[i], tempdata[i]))) for i in 1:length(stressdata)]
-timedim = (Ti([DateTime(2016, 1, 3, 9),
-               DateTime(2016, 1, 6, 15),
-               DateTime(2016, 2, 3, 10),
-               DateTime(2016, 2, 3, 14),
-               DateTime(2016, 2, 18, 10),
-               DateTime(2016, 3, 3, 3),
-               DateTime(2016, 3, 3, 8),
-               DateTime(2016, 4, 3, 14),
-               DateTime(2016, 4, 4, 10),
-               DateTime(2016, 4, 16, 14)
-              ]; mode=Sampled(; span=Regular(Hour(3)))),)
+tspan = [
+    DateTime(2016, 1, 3, 9),
+    DateTime(2016, 1, 6, 15),
+    DateTime(2016, 2, 3, 10),
+    DateTime(2016, 2, 3, 14),
+    DateTime(2016, 2, 18, 10),
+    DateTime(2016, 3, 3, 3),
+    DateTime(2016, 3, 3, 8),
+    DateTime(2016, 4, 3, 14),
+    DateTime(2016, 4, 4, 10),
+    DateTime(2016, 4, 16, 14)
+]; 
+timedim = Ti(tspan; span=GeoData.Regular(Hour(3)))
 series = GeoSeries(stacks, timedim)
+
 @test series[At(DateTime(2016, 1, 3, 9))][:stress] == [1. 2.]
 
 @testset "mapgrowth float" begin
@@ -55,7 +58,7 @@ series = GeoSeries(stacks, timedim)
     @test output[Ti(At(DateTime(2016, 4, 3)))] == [0.0 0.0]
 
     @test typeof(dims(output)) <: Tuple{Y,X,Ti}
-    @test length(val(dims(output, Ti))) == 4
+    @test length(dims(output, Ti)) == 4
 
     # Upper
     output = mapgrowth(upper;
