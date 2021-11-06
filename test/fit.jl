@@ -1,6 +1,7 @@
 using GrowthMaps, GeoData, ModelParameters, Unitful, Test, Plots
 using Unitful: °C, K, hr, d, mol, cal
 using GrowthMaps: rate, condition, conditionalrate
+using GeoData.LookupArrays
 
 #= This file just tests that the fitting routines run, not
 that they work, which is difficult with Interact.jl. =#
@@ -36,7 +37,7 @@ end
         name=:stress, missingval=-99.0
     )
     stacks = [GeoStack((temp=tempdata[i],)) for i in 1:length(tempdata)]
-    timedim = (Ti((1:1:5)hr; mode=Sampled(; span=Regular(1hr))),)
+    timedim = (Ti(Sampled((1:1:5)hr; span=Regular(1hr))),)
     modelkwargs = (series=GeoSeries(stacks, timedim), tspan=1hr:1hr:5hr)
     interface = mapfit!(model, modelkwargs; occurrence=[(1, 2), (9, 10)]);
 end

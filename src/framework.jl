@@ -44,7 +44,7 @@ function mapgrowth(models::Union{Tuple{<:Model,Vararg},NamedTuple{<:Any,<:Tuple{
     stackbuffer = GeoData.modify(arraytype, stack)
 
     # Make a 3 dimensional GeoArray for output, adding the time dimension
-    ti = Ti(tspan; mode=Sampled(Ordered(), Regular(period), Intervals(Start())))
+    ti = Ti(Sampled(tspan; order=ForwardOrdered(), span=Regular(period), sampling=Intervals(Start())))
     outdims = (dims(A)..., ti)
     outA = arraytype(fill(initval, size(A)..., nperiods))
     outputs = map(models) do m
