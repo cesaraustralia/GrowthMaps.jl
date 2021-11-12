@@ -105,10 +105,10 @@ Fit a model to the map.
 
 - `occurence`: a `Vector` of occurence locations, as `(lon, lat)` tuples.
 - `modelkwargs`: are passed to the `mapgrowth` with the model.
-- `mapkwargs`: are passed to the `plot` function the plots the `GeoArray`
+- `mapkwargs`: are passed to the `plot` function the plots the `Raster`
 - `throttle`: the response time of Interact.jl sliders.
 - `window`: selects a window of the output to plot. By default this is `(Band(1),)`,
-  which just removes the `Band` dimension from a `GeoArray`, if it exists.
+  which just removes the `Band` dimension from a `Raster`, if it exists.
 - `kwargs`: passed to `Plots.scatter!`
 
 # Example

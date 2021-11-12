@@ -5,7 +5,7 @@ module GrowthMaps
 
 using ConstructionBase,
       Dates,
-      GeoData,
+      Rasters,
       InteractModels,
       LsqFit,
       Plots,
@@ -15,7 +15,7 @@ using ConstructionBase,
 
 @reexport using ModelParameters
 
-using GeoData.LookupArrays 
+using Rasters.LookupArrays 
 using Unitful: °C, K, R, Units
 using Base: tail
 

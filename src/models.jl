@@ -58,7 +58,7 @@ availability of data on detailed mortality responses to climatic stressors is
 often lacking.
 
 Upper and lower stresses may be in relation to any environmental variable,
-specied with the `key` parameter, that will use the data at that key in `GeoStack`
+specied with the `key` parameter, that will use the data at that key in `RasterStack`
 for the current timestep.
 """
 abstract type StressModel <: RateModel end
@@ -172,7 +172,7 @@ end
     Layer(key::Symbol, u::Union{Units,Quantity}, model::RateModel)
 
 Layers connect a model to a data source, providing the key to look
-up the layer in a GeoData.jl `GeoStack`, and specifying the
+up the layer in a Rasters.jl `RasterStack`, and specifying the
 scientific units of the layer, if it has units. Using units adds
 an extra degree of safety to your calculation, and allows for using
 data in different units with the same models.
