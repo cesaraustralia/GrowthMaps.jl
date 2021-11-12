@@ -1,7 +1,7 @@
-using GrowthMaps, GeoData, ModelParameters, Unitful, Test, Plots
+using GrowthMaps, Rasters, ModelParameters, Unitful, Test, Plots
 using Unitful: °C, K, hr, d, mol, cal
 using GrowthMaps: rate, condition, conditionalrate
-using GeoData.LookupArrays
+using Rasters.LookupArrays
 
 #= This file just tests that the fitting routines run, not
 that they work, which is difficult with Interact.jl. =#
@@ -32,13 +32,13 @@ end
 
 @testset "Map fit interface" begin
     ## Set up series data
-    tempdata = GeoArray.(
+    tempdata = Raster.(
         [rand(0.0:40.0, 10, 10) for i in 1:5], Ref((X, Y)); 
         name=:stress, missingval=-99.0
     )
-    stacks = [GeoStack((temp=tempdata[i],)) for i in 1:length(tempdata)]
+    stacks = [RasterStack((temp=tempdata[i],)) for i in 1:length(tempdata)]
     timedim = (Ti(Sampled((1:1:5)hr; span=Regular(1hr))),)
-    modelkwargs = (series=GeoSeries(stacks, timedim), tspan=1hr:1hr:5hr)
+    modelkwargs = (series=RasterSeries(stacks, timedim), tspan=1hr:1hr:5hr)
     interface = mapfit!(model, modelkwargs; occurrence=[(1, 2), (9, 10)]);
 end
 

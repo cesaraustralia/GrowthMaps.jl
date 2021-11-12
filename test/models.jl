@@ -1,4 +1,4 @@
-using GrowthMaps, GeoData, Unitful, Test
+using GrowthMaps, Rasters, Unitful, Test
 using Unitful: °C, K, hr, d, mol, cal
 using GrowthMaps: rate, condition, conditionalrate, combinelayers
 

@@ -1,21 +1,21 @@
-using GrowthMaps, GeoData, ModelParameters, Dates, Test, StaticArrays
+using GrowthMaps, Rasters, ModelParameters, Dates, Test, StaticArrays
 using Unitful: °C, K, hr, d, mol, cal
 
 dimz = Y(10:10), X(100:10:110)
 
 # Set up series data
-stressdata = GeoArray.([[1. 2.], [1. 2.],
-                        [2. 3.], [3. 4.], [2.5 3.5],
-                        [4. 5.], [5. 6.],
-                        [6. 7.], [6. 7.], [6. 7.]], Ref(dimz); name=:stress)
+stressdata = Raster.([[1. 2.], [1. 2.],
+                      [2. 3.], [3. 4.], [2.5 3.5],
+                      [4. 5.], [5. 6.],
+                      [6. 7.], [6. 7.], [6. 7.]], Ref(dimz); name=:stress)
 # TODO set up tempdata
-tempdata = GeoArray.([[270. 280.], [270. 280.],
-                      [270. 280.], [270. 280.], [270. 280.],
-                      [270. 280.], [270. 280.],
-                      [270. 280.], [270. 280.], [270. 280.]], Ref(dimz); name=:tempdata)
+tempdata = Raster.([[270. 280.], [270. 280.],
+                    [270. 280.], [270. 280.], [270. 280.],
+                    [270. 280.], [270. 280.],
+                    [270. 280.], [270. 280.], [270. 280.]], Ref(dimz); name=:tempdata)
 
-# Build a GeoSeries
-stacks = [GeoStack(NamedTuple{(:stress, :temp)}((stressdata[i], tempdata[i]))) for i in 1:length(stressdata)]
+# Build a RasterSeries
+stacks = [RasterStack(NamedTuple{(:stress, :temp)}((stressdata[i], tempdata[i]))) for i in 1:length(stressdata)]
 tspan = [
     DateTime(2016, 1, 3, 9),
     DateTime(2016, 1, 6, 15),
@@ -28,8 +28,8 @@ tspan = [
     DateTime(2016, 4, 4, 10),
     DateTime(2016, 4, 16, 14)
 ]; 
-timedim = Ti(tspan; span=GeoData.Regular(Hour(3)))
-series = GeoSeries(stacks, timedim)
+timedim = Ti(tspan; span=Rasters.Regular(Hour(3)))
+series = RasterSeries(stacks, timedim)
 
 @test series[At(DateTime(2016, 1, 3, 9))][:stress] == [1. 2.]
 

@@ -8,7 +8,7 @@ Spotted Wing Drosophila (SWD) _D. suzukii_, for each month of the year on a 9km 
 accross North America.
 
 We'll experiment with running the model with a number of different datasets.
-GrowthMaps.jl, via GeoData.jl faciliates using a wide range of input sources.
+GrowthMaps.jl, via Rasters.jl faciliates using a wide range of input sources.
 First we will use aggregated data in tiff files, then aggregate them to in-memory
 files to run the inferface. Finally if you can download it, we'll use the
 (huge) SMAP dataset, which is in a custom HDF5 format.
@@ -22,7 +22,7 @@ These packages take care of loading and plotting data, and handling sci units an
 
 ```julia; results="hidden"
 using GrowthMaps, Plots, Unitful, UnitfulRecipes, Dates
-using GeoData, ArchGDAL, NCDatasets
+using Rasters, ArchGDAL, NCDatasets
 using CSV, DataFrames
 using Unitful: °C, K, cal, mol
 basedir = joinpath(dirname(@__FILE__), "../")
@@ -112,7 +112,7 @@ that use the same source data, like `(growth, heatstress, coldstress)`.
 
 ## Load spatial data
 
-Later we can use real SMAP datasets using GeoData.jl SMAPseries loader.
+Later we can use real SMAP datasets using Rasters.jl SMAPseries loader.
 But downloading the dataset takes too long for an example.
 Instead we will download and unzip some lower resolution monthly
 data to use in the model:
@@ -139,7 +139,7 @@ dates = DateTime.(replace.(surface_temp_paths, Ref(r".*_(\d+T\d+).tif" => s"\1")
 We know the `land_fraction_wilting` files are for the same dates.
 
 Now we have the files and date seies, we can put together a series of
-GeoData.jl stacks to load lazily from disk while running `mapgrowth`.
+Rasters.jl stacks to load lazily from disk while running `mapgrowth`.
 
 The beauty of this approach is that we can use a lot of different source file
 types and folder configurations without converting them or running out of RAM.
@@ -154,7 +154,7 @@ function makestack(i)
 end
 stacks = [makestack(i) for i in 1:length(surface_temp_paths)]
 timedim = Ti(dates; mode=Sampled(span=Regular(Hour(3))))
-tiffseries = GeoSeries(stacks, (timedim,))
+tiffseries = RasterSeries(stacks, (timedim,))
 ```
 
 We can plot a layer from a file at some date in the series:
@@ -276,7 +276,7 @@ Large values will look pixelated but will run fast.
 
 ```julia; results="hidden"
 agg = 8
-aggseries = GeoData.aggregate(Center(), tiffseries, (Lon(agg), Lat(agg)))
+aggseries = Rasters.aggregate(Center(), tiffseries, (Lon(agg), Lat(agg)))
 ```
 
 As the combination of models is additive, we can pre-build parts of the model
@@ -292,7 +292,7 @@ precomputed = mapgrowth(fittedgrowth; modelkwargs...)
 Then fit the other components. `throttle` will dictate how fast the interface
 updates. Make it larger on a slow machine, smaller on a faster one.
 The `window` argument lets us select a window of the output to view, using
-DimensionalData.jl/GeoData.jl `Dimension`s and `Selector`s. Here we only plot
+DimensionalData.jl/Rasters.jl `Dimension`s and `Selector`s. Here we only plot
 the first time: but you can select any/multiple, and select them with
 `Near(DateTime(2016,2))` or similar.
 
@@ -341,19 +341,19 @@ plot(output[Ti(1:3:12)]; axis=false)
 ```
 
 This output is ready to use for projecting growthrates, or in a dispersal
-simulation using Dispersal.jl. Lets save it as a NetCDF file using GeoData.jl:
+simulation using Dispersal.jl. Lets save it as a NetCDF file using Rasters.jl:
 
 ```julia; results="hidden"
 savedir = joinpath(basedir, "build") |> mkpath
 savepath = joinpath(savedir, "growthrates.ncd")
-write(savepath, NCDarray, output)
+write(savepath, output)
 ```
 
 We can load it again with:
 
 ```julia; results="hidden"
-ncarray = NCDarray(savepath)
-plot(ncarray[Ti(1)])
+rast = Raster(savepath)
+plot(rast[Ti(1)])
 ```
 
 
@@ -366,7 +366,7 @@ the model for a serious application, run it on the real SMAP dataset.
 Unfortunately we can't just download the data for you with a script,
 as you need to log in to an account to have access.
 
-But GeoData.jl has a `SMAPseries()` constructor that will automate the
+But Rasters.jl has a `SMAPseries()` constructor that will automate the
 whole process of loading SMAP HDF5 files from a folder once you have
 the data.
 
@@ -396,5 +396,5 @@ plot(output[Ti(1:3:12)]; axis=false)
 And save a netcdf:
 
 ```julia; eval=false
-write(joinpath(basedir, "growthrates.ncd"), NCDarray, output)
+write(joinpath(basedir, "growthrates.ncd"), output)
 ```
