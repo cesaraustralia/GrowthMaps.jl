@@ -1,7 +1,7 @@
 name = "GrowthMaps"
 uuid = "a252ced4-3752-11e9-0615-256422162c4d"
 authors = ["Rafael Schouten", "James Maino"]
-version = "0.2.5"
+version = "0.2.6"
 
 [deps]
 ConstructionBase = "187b0558-2788-49d3-abe0-74a17ed4e7c9"
